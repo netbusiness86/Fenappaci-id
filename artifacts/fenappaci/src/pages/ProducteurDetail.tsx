@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   ArrowLeft, Pencil, Trash2, User, Phone, MapPin, FileText,
-  Building2, Leaf, CheckCircle2, AlertTriangle,
+  Building2, Leaf, AlertTriangle,
   Navigation, Loader2, ImageOff,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -70,21 +70,32 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-function PhotoBadge({ objectPath, label }: { objectPath: string | null | undefined; label: string }) {
-  if (!objectPath) return (
-    <div className="flex items-center gap-2 py-2.5 border-b border-gray-100 last:border-0">
-      <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider w-24">{label}</span>
-      <span className="text-xs text-gray-400 italic">Non fourni</span>
-    </div>
-  );
-  return (
-    <div className="flex items-center gap-2 py-2.5 border-b border-gray-100 last:border-0">
-      <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider w-24">{label}</span>
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#2E7D32] bg-[#E8F5E9] px-2 py-1 rounded-full">
-        <CheckCircle2 className="w-3 h-3" /> Photo enregistrée
-      </span>
-    </div>
-  );
+/** Renders a scan photo from a signed object-storage URL with loading/error states. */
+function ObjectPhoto({
+  objectPath,
+  alt,
+  className,
+}: {
+  objectPath: string | null | undefined;
+  alt: string;
+  className?: string;
+}) {
+  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(objectPath);
+  if (!objectPath) return null;
+  if (isLoading)
+    return (
+      <div className={`flex items-center justify-center bg-gray-100 ${className}`}>
+        <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+      </div>
+    );
+  if (isError || !signedUrl)
+    return (
+      <div className={`flex flex-col items-center justify-center bg-red-50 gap-1 ${className}`}>
+        <ImageOff className="w-5 h-5 text-red-300" />
+        <span className="text-[10px] text-red-400">Introuvable</span>
+      </div>
+    );
+  return <img src={signedUrl} alt={alt} className={`object-cover ${className}`} onError={invalidate} />;
 }
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -172,6 +183,24 @@ export default function ProducteurDetail() {
           <InfoRow label="Lieu de naissance" value={val(p.lieu_naissance)} />
           <InfoRow label="Nationalité" value={val(p.nationalite)} />
           <InfoRow label="Situation matrimoniale" value={val(p.situation_matrimoniale)} />
+          {p.photo_path && (
+            <div className="py-3">
+              <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider mb-2">
+                Photo d'identité
+              </p>
+              <ObjectPhoto
+                objectPath={p.photo_path}
+                alt={`${p.nom} ${p.prenoms}`}
+                className="w-28 h-36 rounded-xl border object-cover"
+              />
+            </div>
+          )}
+          {!p.photo_path && (
+            <div className="py-2.5 border-b border-gray-100">
+              <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider">Photo d'identité</span>
+              <p className="text-xs text-gray-400 italic mt-0.5">Non fournie</p>
+            </div>
+          )}
         </Section>
 
         {/* CONTACT */}
@@ -187,8 +216,38 @@ export default function ProducteurDetail() {
           <InfoRow label="Numéro" value={val(p.numero_piece)} />
           <InfoRow label="Délivrance" value={val(p.date_delivrance)} />
           <InfoRow label="Expiration" value={val(p.date_expiration)} />
-          <PhotoBadge objectPath={p.piece_recto} label="Recto" />
-          <PhotoBadge objectPath={p.piece_verso} label="Verso" />
+          {(p.piece_recto || p.piece_verso) && (
+            <div className="py-3 space-y-3">
+              <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider">
+                Scan de la pièce
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {p.piece_recto && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500 font-medium">Recto</p>
+                    <ObjectPhoto
+                      objectPath={p.piece_recto}
+                      alt="Recto pièce d'identité"
+                      className="w-full rounded-xl border aspect-[3/2]"
+                    />
+                  </div>
+                )}
+                {p.piece_verso && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500 font-medium">Verso</p>
+                    <ObjectPhoto
+                      objectPath={p.piece_verso}
+                      alt="Verso pièce d'identité"
+                      className="w-full rounded-xl border aspect-[3/2]"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {!p.piece_recto && !p.piece_verso && (
+            <div className="py-2.5 text-xs text-gray-400 italic">Aucun scan fourni</div>
+          )}
         </Section>
 
         {/* LOCALISATION */}
@@ -236,13 +295,6 @@ export default function ProducteurDetail() {
           </Section>
         )}
 
-        {/* Photos — placeholder si présentes */}
-        {p.photo_path && (
-          <div className="bg-[#E8F5E9] border border-[#A5D6A7] rounded-2xl px-4 py-3 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-[#2E7D32] flex-none" />
-            <p className="text-sm font-medium text-[#1B5E20]">Photo d'identité enregistrée</p>
-          </div>
-        )}
 
         {/* EXPLOITATIONS & PARCELLES */}
         <Section icon={<Leaf className="w-4 h-4" />} title="Exploitations agricoles">

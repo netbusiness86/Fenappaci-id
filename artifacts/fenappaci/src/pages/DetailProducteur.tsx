@@ -194,6 +194,20 @@ export default function DetailProducteur() {
           <InfoRow label="Nationalité" value={producteur.nationalite} />
           <InfoRow label="Situation matrimoniale" value={producteur.situation_matrimoniale} />
           <div className="flex flex-col py-2 border-b border-gray-100">
+            <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider mb-2">
+              Photo d'identité
+            </span>
+            {producteur.photo_path ? (
+              <ObjectPhoto
+                objectPath={producteur.photo_path}
+                alt={`${producteur.nom} ${producteur.prenoms}`}
+                className="w-28 h-36 rounded-xl border"
+              />
+            ) : (
+              <span className="text-xs text-gray-400 italic">Non fournie</span>
+            )}
+          </div>
+          <div className="flex flex-col py-2 border-b border-gray-100">
             <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider mb-0.5">
               Téléphone
             </span>
