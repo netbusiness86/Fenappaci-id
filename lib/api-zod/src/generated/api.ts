@@ -146,7 +146,11 @@ export const CreateProducteurBody = zod.object({
   "cooperative_id": zod.number().optional(),
   "cultures": zod.string().optional(),
   "superficie_ha": zod.number().optional(),
-  "photo_path": zod.string().optional()
+  "photo_path": zod.string().optional(),
+  "latitude": zod.number().optional(),
+  "longitude": zod.number().optional(),
+  "gps_precision": zod.number().optional(),
+  "gps_captured_at": zod.string().optional()
 })
 
 export const CreateProducteurResponse = zod.object({
@@ -182,6 +186,10 @@ export const CreateProducteurResponse = zod.object({
   "cultures": zod.string().nullish(),
   "superficie_ha": zod.number().nullish(),
   "photo_path": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "gps_precision": zod.number().nullish(),
+  "gps_captured_at": zod.string().nullish(),
   "status": zod.string(),
   "agent_id": zod.number().nullish(),
   "agent_nom": zod.string().nullish(),
@@ -229,6 +237,10 @@ export const GetProducteurResponse = zod.object({
   "cultures": zod.string().nullish(),
   "superficie_ha": zod.number().nullish(),
   "photo_path": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "gps_precision": zod.number().nullish(),
+  "gps_captured_at": zod.string().nullish(),
   "status": zod.string(),
   "agent_id": zod.number().nullish(),
   "agent_nom": zod.string().nullish(),
@@ -272,7 +284,11 @@ export const UpdateProducteurBody = zod.object({
   "cultures": zod.string().optional(),
   "superficie_ha": zod.number().optional(),
   "photo_path": zod.string().optional(),
-  "status": zod.string().optional()
+  "status": zod.string().optional(),
+  "latitude": zod.number().optional(),
+  "longitude": zod.number().optional(),
+  "gps_precision": zod.number().optional(),
+  "gps_captured_at": zod.string().optional()
 })
 
 export const UpdateProducteurResponse = zod.object({
@@ -308,6 +324,10 @@ export const UpdateProducteurResponse = zod.object({
   "cultures": zod.string().nullish(),
   "superficie_ha": zod.number().nullish(),
   "photo_path": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "gps_precision": zod.number().nullish(),
+  "gps_captured_at": zod.string().nullish(),
   "status": zod.string(),
   "agent_id": zod.number().nullish(),
   "agent_nom": zod.string().nullish(),

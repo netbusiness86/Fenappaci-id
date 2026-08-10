@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertTriangle, UserPlus, CheckCircle2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, UserPlus, CheckCircle2, MapPin, Loader2 } from 'lucide-react';
 
 type Step = 1 | 2 | 3 | 4 | 'summary' | 'success';
 
@@ -37,6 +37,11 @@ type FormData = {
   cooperative_nom_libre: string;
   cooperative_numero_libre: string;
   cooperative_fonction: string;
+  // GPS
+  latitude: number | null;
+  longitude: number | null;
+  gps_precision: number | null;
+  gps_captured_at: string | null;
 };
 
 const initialState: FormData = {
@@ -64,6 +69,10 @@ const initialState: FormData = {
   cooperative_nom_libre: '',
   cooperative_numero_libre: '',
   cooperative_fonction: '',
+  latitude: null,
+  longitude: null,
+  gps_precision: null,
+  gps_captured_at: null,
 };
 
 const districtRegions: Record<string, string> = {
@@ -115,6 +124,41 @@ export default function Identify() {
   const [step, setStep] = useState<Step>(1);
   const [direction, setDirection] = useState(1);
   const [createdProducteur, setCreatedProducteur] = useState<Producteur | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
+  const captureGPS = () => {
+    if (!navigator.geolocation) {
+      setGpsError("La géolocalisation n'est pas supportée par cet appareil.");
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const now = new Date().toISOString();
+        setFormData(prev => ({
+          ...prev,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          gps_precision: pos.coords.accuracy,
+          gps_captured_at: now,
+        }));
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsLoading(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsError("Accès à la localisation refusé. Veuillez autoriser l'accès dans les paramètres de votre appareil.");
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setGpsError("Position GPS indisponible. Vérifiez que le GPS est activé et réessayez.");
+        } else {
+          setGpsError("Impossible d'obtenir la position. Vérifiez votre signal GPS et réessayez.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
 
   const handleNext = () => {
     setDirection(1);
@@ -204,6 +248,12 @@ export default function Identify() {
           { label: 'Sous-préfecture', value: formData.sous_prefecture },
           { label: 'Commune', value: formData.commune },
           { label: 'Village', value: formData.village },
+          {
+            label: 'GPS',
+            value: formData.latitude !== null && formData.longitude !== null
+              ? `${formData.latitude.toFixed(6)}°, ${formData.longitude.toFixed(6)}° (±${Math.round(formData.gps_precision ?? 0)} m)`
+              : null
+          },
         ]
       },
       {
@@ -555,6 +605,100 @@ export default function Identify() {
                         value={formData.village} 
                         onChange={e => setFormData({ ...formData, village: e.target.value })} 
                       />
+                    </div>
+
+                    {/* GPS Capture */}
+                    <div className="pt-2 space-y-3">
+                      <div className="border-t border-dashed border-gray-200 pt-4">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                          Géolocalisation GPS
+                        </p>
+                        <button
+                          type="button"
+                          onClick={captureGPS}
+                          disabled={gpsLoading}
+                          className={`w-full h-14 rounded-xl border-2 font-bold text-base flex items-center justify-center gap-3 transition-all ${
+                            formData.latitude !== null
+                              ? 'bg-[#E8F5E9] border-[#2E7D32] text-[#1B5E20]'
+                              : 'bg-white border-[#F57C00] text-[#E65100] hover:bg-[#FFF3E0]'
+                          } ${gpsLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          {gpsLoading ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Localisation en cours…
+                            </>
+                          ) : formData.latitude !== null ? (
+                            <>
+                              <CheckCircle2 className="w-5 h-5" />
+                              Position GPS capturée ✓
+                            </>
+                          ) : (
+                            <>
+                              <MapPin className="w-5 h-5" />
+                              📍 CAPTURER MA POSITION GPS
+                            </>
+                          )}
+                        </button>
+
+                        {/* GPS error */}
+                        {gpsError && (
+                          <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                            <div>
+                              <p className="text-sm text-red-700 font-medium">{gpsError}</p>
+                              <button
+                                type="button"
+                                onClick={captureGPS}
+                                className="text-xs text-red-600 underline mt-1"
+                              >
+                                Réessayer
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* GPS success display */}
+                        {formData.latitude !== null && formData.longitude !== null && (
+                          <div className="mt-3 p-4 rounded-xl bg-[#E8F5E9] border border-[#A5D6A7] space-y-2">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MapPin className="w-4 h-4 text-[#2E7D32]" />
+                              <span className="text-sm font-bold text-[#1B5E20]">Coordonnées enregistrées</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <span className="text-gray-500 text-xs block">Latitude</span>
+                                <span className="font-mono font-semibold text-[#1B5E20]">
+                                  {formData.latitude.toFixed(6)}°
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500 text-xs block">Longitude</span>
+                                <span className="font-mono font-semibold text-[#1B5E20]">
+                                  {formData.longitude.toFixed(6)}°
+                                </span>
+                              </div>
+                            </div>
+                            {formData.gps_precision !== null && (
+                              <p className="text-xs text-gray-600">
+                                Précision : ±{Math.round(formData.gps_precision)} m
+                              </p>
+                            )}
+                            {formData.gps_captured_at && (
+                              <p className="text-xs text-gray-500">
+                                Capturé le {new Date(formData.gps_captured_at).toLocaleString('fr-FR')}
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={captureGPS}
+                              className="text-xs text-[#2E7D32] underline"
+                            >
+                              Recapturer
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

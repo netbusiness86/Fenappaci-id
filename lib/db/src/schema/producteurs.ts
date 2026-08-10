@@ -1,4 +1,4 @@
-import { pgTable, serial, text, decimal, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, decimal, doublePrecision, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -32,6 +32,11 @@ export const producteursTable = pgTable("producteurs", {
   sous_prefecture: text("sous_prefecture"),
   commune: text("commune"),
   village: text("village").notNull().default(""),
+  // GPS
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  gps_precision: doublePrecision("gps_precision"),
+  gps_captured_at: text("gps_captured_at"),
 
   // Étape 4 — Coopérative
   cooperative_id: integer("cooperative_id"),

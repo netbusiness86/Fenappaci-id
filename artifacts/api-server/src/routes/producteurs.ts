@@ -61,6 +61,11 @@ async function serializeProducteur(p: typeof producteursTable.$inferSelect) {
     sous_prefecture: p.sous_prefecture ?? null,
     commune: (p as any).commune ?? null,
     village: p.village ?? null,
+    // GPS
+    latitude: (p as any).latitude ?? null,
+    longitude: (p as any).longitude ?? null,
+    gps_precision: (p as any).gps_precision ?? null,
+    gps_captured_at: (p as any).gps_captured_at ?? null,
     // Coopérative
     cooperative_id: p.cooperative_id ?? null,
     cooperative_nom,
@@ -148,6 +153,10 @@ router.post("/producteurs", async (req: Request, res: Response): Promise<void> =
     cooperative_fonction: data.cooperative_fonction ?? null,
     cultures: data.cultures ?? null,
     superficie_ha: data.superficie_ha !== undefined ? String(data.superficie_ha) : null,
+    latitude: (data as any).latitude ?? null,
+    longitude: (data as any).longitude ?? null,
+    gps_precision: (data as any).gps_precision ?? null,
+    gps_captured_at: (data as any).gps_captured_at ?? null,
     numero_membre: "TEMP",
     agent_id: agentId,
   };
