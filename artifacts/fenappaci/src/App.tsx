@@ -19,6 +19,7 @@ import Dashboard from '@/pages/Dashboard';
 import MyProducers from '@/pages/MyProducers';
 import Identify from '@/pages/Identify';
 import EditProducteur from '@/pages/EditProducteur';
+import ProducteurDetail from '@/pages/ProducteurDetail';
 import SearchPage from '@/pages/Search';
 import Profile from '@/pages/Profile';
 import NotFound from '@/pages/not-found';
@@ -58,6 +59,9 @@ function Router() {
           </Route>
           <Route path="/producteurs/:id/modifier">
             <ProtectedRoute><EditProducteur /></ProtectedRoute>
+          </Route>
+          <Route path="/producteurs/:id">
+            <ProtectedRoute><ProducteurDetail /></ProtectedRoute>
           </Route>
           <Route path="/rechercher">
             <ProtectedRoute><SearchPage /></ProtectedRoute>

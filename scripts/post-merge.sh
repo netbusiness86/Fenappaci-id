@@ -1,4 +1,5 @@
 #!/bin/bash
 set -e
-pnpm install --frozen-lockfile
-pnpm --filter db push
+
+# Install dependencies (no frozen lockfile — task agents may add new packages)
+pnpm install --no-frozen-lockfile

@@ -130,14 +130,25 @@ export default function SearchPage() {
                   )}
                 </div>
 
-                <Button
-                  size="sm"
-                  className="w-full bg-[#1B5E20] hover:bg-[#2E7D32] text-white rounded-xl gap-2"
-                  onClick={() => navigate(`/producteurs/${p.id}/modifier`)}
-                >
-                  <Pencil className="w-4 h-4" />
-                  Modifier le dossier
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-[#1B5E20] text-[#1B5E20] rounded-xl gap-1.5"
+                    onClick={() => navigate(`/producteurs/${p.id}`)}
+                  >
+                    <User className="w-4 h-4" />
+                    Voir la fiche
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-[#F57C00] hover:bg-[#E65100] text-white rounded-xl gap-1.5"
+                    onClick={() => navigate(`/producteurs/${p.id}/modifier`)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Modifier
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

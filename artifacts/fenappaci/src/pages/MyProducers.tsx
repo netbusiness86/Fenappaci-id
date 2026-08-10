@@ -70,7 +70,12 @@ export default function MyProducers() {
           </div>
         ) : (
           producteurs?.map(p => (
-            <div key={p.id} className="bg-white p-4 rounded-2xl border shadow-sm flex items-start gap-4 active:scale-[0.98] transition-transform">
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setLocation(`/producteurs/${p.id}`)}
+              className="w-full text-left bg-white p-4 rounded-2xl border shadow-sm flex items-start gap-4 active:scale-[0.98] transition-transform"
+            >
               <div className="w-12 h-12 bg-muted rounded-full flex-none flex items-center justify-center overflow-hidden">
                 {p.photo_path ? (
                   <img src={p.photo_path} alt={p.nom} className="w-full h-full object-cover" />
@@ -101,18 +106,12 @@ export default function MyProducers() {
                     {p.cultures}
                   </p>
                 )}
-                <div className="mt-3 pt-2 border-t border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => setLocation(`/producteurs/${p.id}/modifier`)}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-[#1B5E20] hover:text-[#2E7D32] transition-colors bg-[#E8F5E9] hover:bg-[#C8E6C9] px-3 py-1.5 rounded-full"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Modifier le dossier
-                  </button>
+                <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-1.5">
+                  <Pencil className="w-3.5 h-3.5 text-[#1B5E20]" />
+                  <span className="text-xs font-semibold text-[#1B5E20]">Voir la fiche</span>
                 </div>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>
