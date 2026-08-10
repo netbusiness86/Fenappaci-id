@@ -87,6 +87,12 @@ export default function Login() {
             <Button variant="secondary" size="sm" onClick={() => fillDemo('agent')} type="button" className="text-xs h-10">Agent</Button>
           </div>
         </div>
+
+        <p className="text-center text-xs text-white/40 pt-2">
+          <a href="https://fenappaci.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">
+            fenappaci.com
+          </a>
+        </p>
       </div>
     </div>
   );

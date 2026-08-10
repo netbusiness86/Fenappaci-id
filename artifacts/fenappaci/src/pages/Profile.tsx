@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, MapPin, ChevronRight, Info } from 'lucide-react';
+import { LogOut, MapPin, ChevronRight, Info, Globe } from 'lucide-react';
 import { getRoleBadgeColor } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -100,6 +100,18 @@ export default function Profile() {
               </div>
               <span className="text-sm text-muted-foreground">v1.0.0</span>
             </div>
+            <a
+              href="https://fenappaci.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors active:bg-muted touch-manipulation"
+            >
+              <div className="flex items-center gap-3">
+                <Globe className="w-5 h-5 text-[#2E7D32]" />
+                <span className="text-sm font-medium">Site officiel</span>
+              </div>
+              <span className="text-sm text-[#2E7D32]">fenappaci.com</span>
+            </a>
             <button 
               onClick={handleLogout}
               disabled={isLoggingOut}
