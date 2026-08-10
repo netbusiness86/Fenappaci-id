@@ -39,6 +39,12 @@ router.post(
       return;
     }
 
+    // Require session auth — photo uploads are linked to a producteur dossier
+    if (!req.session?.userId) {
+      res.status(401).json({ error: "Authentification requise" });
+      return;
+    }
+
     try {
 
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();

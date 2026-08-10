@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCreateProducteur, Producteur } from '@workspace/api-client-react';
@@ -8,7 +8,181 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertTriangle, UserPlus, CheckCircle2, MapPin, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, UserPlus, CheckCircle2, MapPin, Loader2, Camera, ImageIcon, RotateCcw, X } from 'lucide-react';
+
+// ─── Utilitaire upload ────────────────────────────────────────────────────────
+async function uploadPhoto(file: File): Promise<string> {
+  // Étape 1 : demander l'URL pré-signée
+  const metaRes = await fetch('/api/storage/uploads/request-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+  });
+  if (!metaRes.ok) throw new Error('Impossible d\'obtenir l\'URL de téléversement');
+  const { uploadURL, objectPath } = await metaRes.json();
+
+  // Étape 2 : envoyer le fichier directement sur GCS
+  const uploadRes = await fetch(uploadURL, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  });
+  if (!uploadRes.ok) throw new Error('Échec du téléversement de la photo');
+
+  return objectPath as string;
+}
+
+// ─── Composant PhotoCapture ──────────────────────────────────────────────────
+interface PhotoCaptureProps {
+  label: string;
+  objectPath: string | null;
+  /** 'user' = caméra frontale (selfie), 'environment' = caméra arrière */
+  cameraFacing?: 'user' | 'environment';
+  onUploaded: (objectPath: string) => void;
+  onRemove: () => void;
+}
+
+function PhotoCapture({ label, objectPath, cameraFacing = 'environment', onUploaded, onRemove }: PhotoCaptureProps) {
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = useCallback(async (file: File) => {
+    setError(null);
+    // Affiche un aperçu local immédiatement
+    const reader = new FileReader();
+    reader.onload = (e) => setPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+    // Téléverse
+    setUploading(true);
+    try {
+      const path = await uploadPhoto(file);
+      onUploaded(path);
+    } catch (err) {
+      setError('Échec de l\'envoi. Vérifiez votre connexion et réessayez.');
+      setPreview(null);
+    } finally {
+      setUploading(false);
+    }
+  }, [onUploaded]);
+
+  const handleReset = () => {
+    setPreview(null);
+    setError(null);
+    onRemove();
+    if (cameraRef.current) cameraRef.current.value = '';
+    if (galleryRef.current) galleryRef.current.value = '';
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
+
+      {/* Aperçu si photo capturée */}
+      {(preview || objectPath) && !error ? (
+        <div className="relative rounded-xl overflow-hidden border-2 border-[#2E7D32] bg-gray-50">
+          {preview ? (
+            <img src={preview} alt={label} className="w-full h-40 object-cover" />
+          ) : (
+            <div className="w-full h-40 flex items-center justify-center bg-[#E8F5E9]">
+              <CheckCircle2 className="w-10 h-10 text-[#2E7D32]" />
+            </div>
+          )}
+          {uploading && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 text-white animate-spin" />
+            </div>
+          )}
+          {!uploading && (
+            <div className="absolute top-2 right-2 flex gap-1.5">
+              <div className="bg-[#2E7D32] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Envoyé
+              </div>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="bg-red-500 text-white rounded-full p-1"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {/* Boutons de capture */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              disabled={uploading}
+              className="h-14 rounded-xl border-2 border-[#F57C00] text-[#E65100] bg-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#FFF3E0] transition-colors disabled:opacity-50"
+            >
+              <Camera className="w-4 h-4" />
+              Caméra
+            </button>
+            <button
+              type="button"
+              onClick={() => galleryRef.current?.click()}
+              disabled={uploading}
+              className="h-14 rounded-xl border-2 border-gray-200 text-gray-600 bg-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              <ImageIcon className="w-4 h-4" />
+              Galerie
+            </button>
+          </div>
+
+          {/* Erreur */}
+          {error && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs text-red-700">{error}</p>
+                <button type="button" onClick={handleReset} className="text-xs text-red-600 underline mt-0.5">
+                  Réessayer
+                </button>
+              </div>
+            </div>
+          )}
+
+          {uploading && (
+            <div className="flex items-center gap-2 text-sm text-gray-500 justify-center py-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Envoi en cours…
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reprendre si capturé */}
+      {(preview || objectPath) && !uploading && !error && (
+        <button type="button" onClick={handleReset} className="text-xs text-[#2E7D32] flex items-center gap-1 underline">
+          <RotateCcw className="w-3 h-3" /> Reprendre la photo
+        </button>
+      )}
+
+      {/* Inputs cachés */}
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture={cameraFacing}
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+      />
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+      />
+    </div>
+  );
+}
 
 type Step = 1 | 2 | 3 | 4 | 'summary' | 'success';
 
@@ -42,6 +216,10 @@ type FormData = {
   longitude: number | null;
   gps_precision: number | null;
   gps_captured_at: string | null;
+  // Photos (objectPath depuis GCS)
+  photo_path: string | null;
+  piece_recto: string | null;
+  piece_verso: string | null;
 };
 
 const initialState: FormData = {
@@ -73,6 +251,9 @@ const initialState: FormData = {
   longitude: null,
   gps_precision: null,
   gps_captured_at: null,
+  photo_path: null,
+  piece_recto: null,
+  piece_verso: null,
 };
 
 const districtRegions: Record<string, string> = {
@@ -228,6 +409,7 @@ export default function Identify() {
           { label: 'Téléphone principal', value: formData.telephone },
           { label: 'Téléphone secondaire', value: formData.telephone_secondaire },
           { label: 'Adresse', value: formData.adresse },
+          { label: 'Photo d\'identité', value: formData.photo_path ? '✓ Photo enregistrée' : null },
         ]
       },
       {
@@ -237,6 +419,8 @@ export default function Identify() {
           { label: 'Numéro de pièce', value: formData.numero_piece },
           { label: 'Date de délivrance', value: formData.date_delivrance },
           { label: "Date d'expiration", value: formData.date_expiration },
+          { label: 'Recto', value: formData.piece_recto ? '✓ Photo enregistrée' : null },
+          { label: 'Verso', value: formData.piece_verso ? '✓ Photo enregistrée' : null },
         ]
       },
       {
@@ -498,6 +682,19 @@ export default function Identify() {
                         onChange={e => setFormData({ ...formData, adresse: e.target.value })} 
                       />
                     </div>
+
+                    {/* Photo d'identité */}
+                    <div className="pt-2">
+                      <div className="border-t border-dashed border-gray-200 pt-4">
+                        <PhotoCapture
+                          label="📷 Photo d'identité"
+                          objectPath={formData.photo_path}
+                          cameraFacing="user"
+                          onUploaded={(path) => setFormData(prev => ({ ...prev, photo_path: path }))}
+                          onRemove={() => setFormData(prev => ({ ...prev, photo_path: null }))}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -544,6 +741,29 @@ export default function Identify() {
                         value={formData.date_expiration} 
                         onChange={e => setFormData({ ...formData, date_expiration: e.target.value })} 
                       />
+                    </div>
+
+                    {/* Photos de la pièce d'identité */}
+                    <div className="pt-2">
+                      <div className="border-t border-dashed border-gray-200 pt-4 space-y-5">
+                        <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                          🪪 Scan de la pièce d'identité
+                        </p>
+                        <PhotoCapture
+                          label="Recto (face avant)"
+                          objectPath={formData.piece_recto}
+                          cameraFacing="environment"
+                          onUploaded={(path) => setFormData(prev => ({ ...prev, piece_recto: path }))}
+                          onRemove={() => setFormData(prev => ({ ...prev, piece_recto: null }))}
+                        />
+                        <PhotoCapture
+                          label="Verso (face arrière)"
+                          objectPath={formData.piece_verso}
+                          cameraFacing="environment"
+                          onUploaded={(path) => setFormData(prev => ({ ...prev, piece_verso: path }))}
+                          onRemove={() => setFormData(prev => ({ ...prev, piece_verso: null }))}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

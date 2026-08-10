@@ -48,7 +48,9 @@ export const producteursTable = pgTable("producteurs", {
   // Meta
   cultures: text("cultures"),
   superficie_ha: decimal("superficie_ha", { precision: 10, scale: 2 }),
-  photo_path: text("photo_path"),
+  photo_path: text("photo_path"),       // Photo d'identité
+  piece_recto: text("piece_recto"),     // Recto de la pièce d'identité
+  piece_verso: text("piece_verso"),     // Verso de la pièce d'identité
   status: text("status").notNull().default("ACTIF"),
   agent_id: integer("agent_id"),
   created_at: timestamp("created_at").defaultNow().notNull(),

@@ -147,6 +147,8 @@ export const CreateProducteurBody = zod.object({
   "cultures": zod.string().optional(),
   "superficie_ha": zod.number().optional(),
   "photo_path": zod.string().optional(),
+  "piece_recto": zod.string().optional(),
+  "piece_verso": zod.string().optional(),
   "latitude": zod.number().optional(),
   "longitude": zod.number().optional(),
   "gps_precision": zod.number().optional(),
@@ -186,6 +188,8 @@ export const CreateProducteurResponse = zod.object({
   "cultures": zod.string().nullish(),
   "superficie_ha": zod.number().nullish(),
   "photo_path": zod.string().nullish(),
+  "piece_recto": zod.string().nullish(),
+  "piece_verso": zod.string().nullish(),
   "latitude": zod.number().nullish(),
   "longitude": zod.number().nullish(),
   "gps_precision": zod.number().nullish(),
@@ -237,6 +241,8 @@ export const GetProducteurResponse = zod.object({
   "cultures": zod.string().nullish(),
   "superficie_ha": zod.number().nullish(),
   "photo_path": zod.string().nullish(),
+  "piece_recto": zod.string().nullish(),
+  "piece_verso": zod.string().nullish(),
   "latitude": zod.number().nullish(),
   "longitude": zod.number().nullish(),
   "gps_precision": zod.number().nullish(),
@@ -288,7 +294,9 @@ export const UpdateProducteurBody = zod.object({
   "latitude": zod.number().optional(),
   "longitude": zod.number().optional(),
   "gps_precision": zod.number().optional(),
-  "gps_captured_at": zod.string().optional()
+  "gps_captured_at": zod.string().optional(),
+  "piece_recto": zod.string().optional(),
+  "piece_verso": zod.string().optional()
 })
 
 export const UpdateProducteurResponse = zod.object({
@@ -324,6 +332,8 @@ export const UpdateProducteurResponse = zod.object({
   "cultures": zod.string().nullish(),
   "superficie_ha": zod.number().nullish(),
   "photo_path": zod.string().nullish(),
+  "piece_recto": zod.string().nullish(),
+  "piece_verso": zod.string().nullish(),
   "latitude": zod.number().nullish(),
   "longitude": zod.number().nullish(),
   "gps_precision": zod.number().nullish(),
