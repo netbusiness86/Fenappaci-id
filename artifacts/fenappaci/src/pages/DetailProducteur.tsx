@@ -26,6 +26,7 @@ import {
   Ban,
   ImageOff,
   Loader2,
+  CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
@@ -413,13 +414,23 @@ export default function DetailProducteur() {
           </AlertDialogContent>
         </AlertDialog>
 
+        {/* Carte */}
+        <Button
+          variant="outline"
+          className="h-14 px-4 border-[#1B5E20] text-[#1B5E20] hover:bg-[#E8F5E9] rounded-xl flex items-center gap-2 shrink-0"
+          onClick={() => setLocation(`/producteurs/${id}/carte`)}
+        >
+          <CreditCard className="w-5 h-5" />
+          Carte
+        </Button>
+
         {/* Modifier */}
         <Button
           className="flex-1 h-14 text-base bg-[#F57C00] hover:bg-[#E65100] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2"
           onClick={() => setLocation(`/producteurs/${id}/modifier`)}
         >
           <Pencil className="w-5 h-5" />
-          Modifier le dossier
+          Modifier
         </Button>
       </div>
     </div>

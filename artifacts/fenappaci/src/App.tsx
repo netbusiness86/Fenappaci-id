@@ -23,6 +23,7 @@ import DetailProducteur from '@/pages/DetailProducteur';
 import SearchPage from '@/pages/Search';
 import Profile from '@/pages/Profile';
 import Disponibilites from '@/pages/Disponibilites';
+import CartePage from '@/pages/CartePage';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -60,6 +61,9 @@ function Router() {
           </Route>
           <Route path="/producteurs/:id/modifier">
             <ProtectedRoute><EditProducteur /></ProtectedRoute>
+          </Route>
+          <Route path="/producteurs/:id/carte">
+            <ProtectedRoute><CartePage /></ProtectedRoute>
           </Route>
           <Route path="/producteurs/:id">
             <ProtectedRoute><DetailProducteur /></ProtectedRoute>
