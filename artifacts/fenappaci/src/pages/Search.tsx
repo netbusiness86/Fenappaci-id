@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useListProducteurs, useListCooperatives } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
-import { Search as SearchIcon, MapPin, Building2, User } from 'lucide-react';
+import { Search as SearchIcon, MapPin, Building2, User, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useLocation } from 'wouter';
 
 export default function SearchPage() {
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
   const [regionFilter, setRegionFilter] = useState('');
@@ -126,6 +129,15 @@ export default function SearchPage() {
                     </div>
                   )}
                 </div>
+
+                <Button
+                  size="sm"
+                  className="w-full bg-[#1B5E20] hover:bg-[#2E7D32] text-white rounded-xl gap-2"
+                  onClick={() => navigate(`/producteurs/${p.id}/modifier`)}
+                >
+                  <Pencil className="w-4 h-4" />
+                  Modifier le dossier
+                </Button>
               </div>
             ))}
           </div>
