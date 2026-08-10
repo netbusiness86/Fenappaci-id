@@ -160,6 +160,68 @@ router.get(
 );
 
 /**
+ * POST /storage/signed-urls
+ *
+ * Batch variant: resolve presigned GET URLs (1 hour) for multiple private
+ * object paths in a single round-trip.
+ *
+ * Request body: { paths: string[] }
+ * Response:     { results: Record<string, { signedUrl: string, expiresAt: string } | { error: string }> }
+ *
+ * Each path is checked independently for ownership. Paths that are denied or
+ * missing receive an { error } entry rather than causing the entire request to
+ * fail. At most 100 paths per call are accepted.
+ */
+router.post('/storage/signed-urls', async (req: Request, res: Response) => {
+  const userId = req.session?.userId as number | undefined;
+  if (!userId) {
+    res.status(401).json({ error: 'Authentification requise' });
+    return;
+  }
+
+  const { paths } = req.body ?? {};
+  if (!Array.isArray(paths) || paths.some((p) => typeof p !== 'string')) {
+    res.status(400).json({ error: 'paths must be an array of strings' });
+    return;
+  }
+
+  if (paths.length > 100) {
+    res.status(400).json({ error: 'At most 100 paths per request' });
+    return;
+  }
+
+  const TTL_SEC = 3600; // 1 hour
+  const expiresAt = new Date(Date.now() + TTL_SEC * 1000).toISOString();
+
+  const entries = await Promise.all(
+    paths.map(async (objectPath) => {
+      try {
+        const allowed = await canUserAccessObject(userId, objectPath);
+        if (!allowed) {
+          return [objectPath, { error: 'Accès refusé' }] as const;
+        }
+        const signedUrl = await objectStorageService.getObjectEntitySignedUrl(
+          objectPath,
+          { userId: String(userId), ttlSec: TTL_SEC },
+        );
+        return [objectPath, { signedUrl, expiresAt }] as const;
+      } catch (err) {
+        if (err instanceof ObjectNotFoundError) {
+          return [objectPath, { error: 'Object not found' }] as const;
+        }
+        if (err instanceof ObjectAccessDeniedError) {
+          return [objectPath, { error: 'Accès refusé' }] as const;
+        }
+        req.log.error({ err, objectPath }, 'Error generating signed URL in batch');
+        return [objectPath, { error: 'Internal error' }] as const;
+      }
+    }),
+  );
+
+  res.json({ results: Object.fromEntries(entries) });
+});
+
+/**
  * GET /storage/signed-url?path=/objects/...
  *
  * Generate a short-lived presigned GET URL (1 hour) for a private object.

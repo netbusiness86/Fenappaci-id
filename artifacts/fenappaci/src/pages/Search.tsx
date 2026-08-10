@@ -7,15 +7,28 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useLocation } from 'wouter';
-import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
+import { useSignedPhotoUrls } from '@/hooks/use-signed-photo-url';
 
 /** Small circular avatar backed by a presigned URL for the search result list. */
-function ProducerThumbnail({ photoPath, nom }: { photoPath: string | null | undefined; nom: string }) {
-  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(photoPath);
+function ProducerThumbnail({
+  photoPath,
+  nom,
+  signedUrl,
+  isLoading,
+  isError,
+  onError,
+}: {
+  photoPath: string | null | undefined;
+  nom: string;
+  signedUrl: string | null;
+  isLoading: boolean;
+  isError: boolean;
+  onError: () => void;
+}) {
   if (!photoPath) return <User className="w-6 h-6 text-muted-foreground" />;
   if (isLoading) return <div className="w-6 h-6 rounded-full bg-gray-200 animate-pulse" />;
   if (isError || !signedUrl) return <ImageOff className="w-5 h-5 text-red-300" aria-label="Photo introuvable" />;
-  return <img src={signedUrl} alt={nom} className="w-full h-full object-cover" onError={invalidate} />;
+  return <img src={signedUrl} alt={nom} className="w-full h-full object-cover" onError={onError} />;
 }
 
 export default function SearchPage() {
@@ -42,6 +55,10 @@ export default function SearchPage() {
       enabled: !!hasFilters,
     }
   });
+
+  // Batch-resolve all photo URLs in one request instead of N individual calls.
+  const photoPaths = producteurs?.map(p => p.photo_path) ?? [];
+  const { getUrl } = useSignedPhotoUrls(photoPaths);
 
   return (
     <div className="h-full flex flex-col">
@@ -107,7 +124,12 @@ export default function SearchPage() {
               <div key={p.id} className="bg-white p-4 rounded-2xl border shadow-sm flex flex-col gap-3 active:scale-[0.98] transition-transform">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-muted rounded-full flex-none flex items-center justify-center overflow-hidden">
-                    <ProducerThumbnail photoPath={p.photo_path} nom={p.nom} />
+                    <ProducerThumbnail
+                      photoPath={p.photo_path}
+                      nom={p.nom}
+                      {...getUrl(p.photo_path)}
+                      onError={() => getUrl(p.photo_path).invalidate()}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">

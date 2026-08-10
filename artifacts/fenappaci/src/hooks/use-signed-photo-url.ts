@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** Stable query-key factory — use this to invalidate from onError handlers. */
@@ -61,4 +61,113 @@ export function useSignedPhotoUrl(objectPath: string | null | undefined): {
     isError: query.isError,
     invalidate,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Batch hook
+// ---------------------------------------------------------------------------
+
+type BatchResult = Record<string, { signedUrl: string; expiresAt: string } | { error: string }>;
+
+const BATCH_SIZE = 100;
+
+/** Fetch one page of at most BATCH_SIZE paths from the batch endpoint. */
+async function fetchSignedUrlChunk(paths: string[]): Promise<BatchResult> {
+  const res = await fetch('/api/storage/signed-urls', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paths }),
+  });
+  if (!res.ok) {
+    const err = new Error(`Batch signed URLs error: ${res.status}`);
+    (err as Error & { status: number }).status = res.status;
+    throw err;
+  }
+  const { results } = await res.json();
+  return results as BatchResult;
+}
+
+/** Stable query-key factory for the batch endpoint. */
+export function signedPhotoUrlsBatchQueryKey(paths: string[]) {
+  // Sort so the key is stable regardless of array order.
+  return ['signed-photo-urls-batch', [...paths].sort()] as const;
+}
+
+/**
+ * Fetch presigned GET URLs for a list of private object paths in one (or more)
+ * batch requests — at most BATCH_SIZE paths per HTTP call.
+ *
+ * Returns `{ getUrl }`: call `getUrl(path)` to get the resolved state for any
+ * path in the list. Paths that are missing or denied have `isError: true`.
+ * Pass an empty or null-only array to skip the request entirely.
+ */
+export function useSignedPhotoUrls(paths: (string | null | undefined)[]): {
+  getUrl: (path: string | null | undefined) => {
+    signedUrl: string | null;
+    isLoading: boolean;
+    isError: boolean;
+    invalidate: () => void;
+  };
+} {
+  const queryClient = useQueryClient();
+
+  // Deduplicate and drop nulls; keep order stable for the query key.
+  const validPaths = useMemo(
+    () => [...new Set(paths.filter((p): p is string => !!p))],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [paths.filter(Boolean).sort().join(',')],
+  );
+
+  const queryKey = signedPhotoUrlsBatchQueryKey(validPaths);
+
+  const query = useQuery<BatchResult>({
+    queryKey,
+    queryFn: async () => {
+      if (validPaths.length === 0) return {};
+      // Split into chunks of BATCH_SIZE and fire them in parallel.
+      const chunks: string[][] = [];
+      for (let i = 0; i < validPaths.length; i += BATCH_SIZE) {
+        chunks.push(validPaths.slice(i, i + BATCH_SIZE));
+      }
+      const chunkResults = await Promise.all(chunks.map(fetchSignedUrlChunk));
+      // Merge all chunk results into a single record.
+      return Object.assign({}, ...chunkResults) as BatchResult;
+    },
+    enabled: validPaths.length > 0,
+    staleTime: 55 * 60 * 1000, // refresh at 55 min, before the 1-hour TTL expires
+    retry: false,
+  });
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, queryKey.join(',')]);
+
+  const getUrl = useCallback(
+    (path: string | null | undefined) => {
+      if (!path) {
+        return { signedUrl: null, isLoading: false, isError: false, invalidate };
+      }
+
+      if (query.isLoading) {
+        return { signedUrl: null, isLoading: true, isError: false, invalidate };
+      }
+
+      const entry = query.data?.[path];
+
+      if (query.isError || !entry) {
+        return { signedUrl: null, isLoading: false, isError: true, invalidate };
+      }
+
+      if ('error' in entry) {
+        return { signedUrl: null, isLoading: false, isError: true, invalidate };
+      }
+
+      return { signedUrl: entry.signedUrl, isLoading: false, isError: false, invalidate };
+    },
+    [query.data, query.isLoading, query.isError, invalidate],
+  );
+
+  return { getUrl };
 }

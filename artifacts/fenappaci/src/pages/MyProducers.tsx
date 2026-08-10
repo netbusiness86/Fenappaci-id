@@ -7,18 +7,24 @@ import { Link, useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
-import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
+import { useSignedPhotoUrls } from '@/hooks/use-signed-photo-url';
 
-/** Resolves a producer's photo via a presigned URL and shows a placeholder on error. */
+/** Resolves a producer's photo via a batch presigned URL map. */
 function ProducerAvatar({
   photoPath,
   nom,
+  signedUrl,
+  isLoading,
+  isError,
+  onError,
 }: {
   photoPath: string | null | undefined;
   nom: string;
+  signedUrl: string | null;
+  isLoading: boolean;
+  isError: boolean;
+  onError: () => void;
 }) {
-  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(photoPath);
-
   if (!photoPath) {
     return <User className="w-6 h-6 text-muted-foreground" />;
   }
@@ -40,7 +46,7 @@ function ProducerAvatar({
       src={signedUrl}
       alt={nom}
       className="w-full h-full object-cover"
-      onError={invalidate}
+      onError={onError}
     />
   );
 }
@@ -55,6 +61,10 @@ export default function MyProducers() {
     search: debouncedSearch,
     status: statusFilter || undefined,
   });
+
+  // Batch-resolve all photo URLs in one request instead of N individual calls.
+  const photoPaths = producteurs?.map(p => p.photo_path) ?? [];
+  const { getUrl } = useSignedPhotoUrls(photoPaths);
 
   const filters = [
     { label: 'Tous', value: '' },
@@ -114,7 +124,12 @@ export default function MyProducers() {
               className="w-full text-left bg-white p-4 rounded-2xl border shadow-sm flex items-start gap-4 active:scale-[0.98] transition-transform"
             >
               <div className="w-12 h-12 bg-muted rounded-full flex-none flex items-center justify-center overflow-hidden">
-                <ProducerAvatar photoPath={p.photo_path} nom={p.nom} />
+                <ProducerAvatar
+                  photoPath={p.photo_path}
+                  nom={p.nom}
+                  {...getUrl(p.photo_path)}
+                  onError={() => getUrl(p.photo_path).invalidate()}
+                />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-1">
