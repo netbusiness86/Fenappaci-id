@@ -35,5 +35,11 @@ export interface ProducteurUpdate {
   cultures?: string;
   superficie_ha?: number;
   photo_path?: string;
+  piece_recto?: string;
+  piece_verso?: string;
+  latitude?: number;
+  longitude?: number;
+  gps_precision?: number;
+  gps_captured_at?: string;
   status?: string;
 }

@@ -31,6 +31,12 @@ export interface ProducteurInput {
   cooperative_nom_libre?: string;
   cooperative_numero_libre?: string;
   cooperative_fonction?: string;
+  piece_recto?: string;
+  piece_verso?: string;
+  latitude?: number;
+  longitude?: number;
+  gps_precision?: number;
+  gps_captured_at?: string;
   cooperative_id?: number;
   cultures?: string;
   superficie_ha?: number;

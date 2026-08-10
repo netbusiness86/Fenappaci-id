@@ -334,6 +334,20 @@ components:
           type: ["string", "null"]
         cooperative_fonction:
           type: ["string", "null"]
+        # Pièce d'identité — scans
+        piece_recto:
+          type: ["string", "null"]
+        piece_verso:
+          type: ["string", "null"]
+        # GPS
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        gps_precision:
+          type: ["number", "null"]
+        gps_captured_at:
+          type: ["string", "null"]
         # Meta
         cultures:
           type: ["string", "null"]
@@ -406,6 +420,20 @@ components:
           type: string
         cooperative_fonction:
           type: string
+        # Pièce d'identité — scans
+        piece_recto:
+          type: string
+        piece_verso:
+          type: string
+        # GPS
+        latitude:
+          type: number
+        longitude:
+          type: number
+        gps_precision:
+          type: number
+        gps_captured_at:
+          type: string
         # Meta
         cooperative_id:
           type: number
@@ -474,6 +502,20 @@ components:
         superficie_ha:
           type: number
         photo_path:
+          type: string
+        # Pièce d'identité — scans
+        piece_recto:
+          type: string
+        piece_verso:
+          type: string
+        # GPS
+        latitude:
+          type: number
+        longitude:
+          type: number
+        gps_precision:
+          type: number
+        gps_captured_at:
           type: string
         status:
           type: string

@@ -91,6 +91,18 @@ export interface Producteur {
   /** @nullable */
   cooperative_fonction?: string | null;
   /** @nullable */
+  piece_recto?: string | null;
+  /** @nullable */
+  piece_verso?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** @nullable */
+  gps_precision?: number | null;
+  /** @nullable */
+  gps_captured_at?: string | null;
+  /** @nullable */
   cultures?: string | null;
   /** @nullable */
   superficie_ha?: number | null;
@@ -129,6 +141,12 @@ export interface ProducteurInput {
   cooperative_nom_libre?: string;
   cooperative_numero_libre?: string;
   cooperative_fonction?: string;
+  piece_recto?: string;
+  piece_verso?: string;
+  latitude?: number;
+  longitude?: number;
+  gps_precision?: number;
+  gps_captured_at?: string;
   cooperative_id?: number;
   cultures?: string;
   superficie_ha?: number;
@@ -164,6 +182,12 @@ export interface ProducteurUpdate {
   cultures?: string;
   superficie_ha?: number;
   photo_path?: string;
+  piece_recto?: string;
+  piece_verso?: string;
+  latitude?: number;
+  longitude?: number;
+  gps_precision?: number;
+  gps_captured_at?: string;
   status?: string;
 }
 

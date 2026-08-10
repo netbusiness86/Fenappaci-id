@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useListProducteurs, useListCooperatives } from '@workspace/api-client-react';
+import { useListProducteurs, useListCooperatives, getListProducteursQueryKey } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Search as SearchIcon, MapPin, Building2, User, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -20,12 +20,15 @@ export default function SearchPage() {
   // Only search if there's input or filters
   const hasFilters = debouncedSearch || regionFilter || coopFilter;
   
-  const { data: producteurs, isLoading } = useListProducteurs({
+  const searchParams = {
     search: debouncedSearch,
     region: regionFilter || undefined,
     cooperative_id: coopFilter || undefined,
-  }, {
+  };
+
+  const { data: producteurs, isLoading } = useListProducteurs(searchParams, {
     query: {
+      queryKey: getListProducteursQueryKey(searchParams),
       enabled: !!hasFilters,
     }
   });

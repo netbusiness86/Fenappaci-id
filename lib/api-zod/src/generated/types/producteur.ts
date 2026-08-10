@@ -62,6 +62,18 @@ export interface Producteur {
   /** @nullable */
   cooperative_fonction?: string | null;
   /** @nullable */
+  piece_recto?: string | null;
+  /** @nullable */
+  piece_verso?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** @nullable */
+  gps_precision?: number | null;
+  /** @nullable */
+  gps_captured_at?: string | null;
+  /** @nullable */
   cultures?: string | null;
   /** @nullable */
   superficie_ha?: number | null;
