@@ -307,7 +307,18 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
 
   const data = parsedBody.data as any;
 
-  // For agents: verify ownership of any photo/piece paths being assigned.
+  // Fetch the existing producteur first (needed for ownership check).
+  const [existing] = await db
+    .select({ agent_id: producteursTable.agent_id })
+    .from(producteursTable)
+    .where(eq(producteursTable.id, id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Producteur non trouvé" });
+    return;
+  }
+
+  // For agents: enforce ownership and verify photo/piece paths being assigned.
   const sessionUserId = req.session?.userId as number | undefined;
   if (sessionUserId) {
     const [sessionUser] = await db
@@ -316,6 +327,12 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
       .where(eq(usersTable.id, sessionUserId));
 
     if (sessionUser && !PRIVILEGED_ROLES.includes(sessionUser.role)) {
+      // Ownership check: agent may only edit their own producteurs.
+      if (existing.agent_id !== sessionUserId) {
+        res.status(403).json({ error: "Accès refusé : ce dossier appartient à un autre agent." });
+        return;
+      }
+
       const pathsToCheck: string[] = [
         data.photo_path,
         data.piece_recto,
@@ -375,6 +392,34 @@ router.delete("/producteurs/:id", async (req: Request, res: Response): Promise<v
   }
 
   const id = parseInt(parsed.data.id, 10);
+
+  // Fetch the existing producteur for ownership check.
+  const [existing] = await db
+    .select({ agent_id: producteursTable.agent_id })
+    .from(producteursTable)
+    .where(eq(producteursTable.id, id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Producteur non trouvé" });
+    return;
+  }
+
+  // For agents: enforce ownership — agents may only delete their own producteurs.
+  const sessionUserId = req.session?.userId as number | undefined;
+  if (sessionUserId) {
+    const [sessionUser] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, sessionUserId));
+
+    if (sessionUser && !PRIVILEGED_ROLES.includes(sessionUser.role)) {
+      if (existing.agent_id !== sessionUserId) {
+        res.status(403).json({ error: "Accès refusé : ce dossier appartient à un autre agent." });
+        return;
+      }
+    }
+  }
+
   await db.delete(producteursTable).where(eq(producteursTable.id, id));
   res.status(204).send();
 });
