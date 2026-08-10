@@ -25,9 +25,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Top Header */}
       <header className="flex-none h-16 bg-[#1B5E20] text-white flex items-center justify-between px-4 z-10 shadow-md">
         <div className="flex items-center gap-2">
-          {/* Logo Placeholder */}
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg font-display">
-            F
+          <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm overflow-hidden">
+            <img src="/logo-fenappaci.png" alt="FENAPPACI" className="w-full h-full object-contain" />
           </div>
           <div>
             <h1 className="font-display font-bold text-lg leading-tight tracking-wide">FENAPPACI</h1>

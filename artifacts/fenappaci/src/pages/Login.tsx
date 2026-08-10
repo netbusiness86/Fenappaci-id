@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Leaf } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Login() {
@@ -37,8 +36,8 @@ export default function Login() {
     <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 bg-[#1B5E20] text-white">
       <div className="w-full max-w-sm space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg">
-            <Leaf className="w-10 h-10 text-[#1B5E20]" />
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl p-1.5">
+            <img src="/logo-fenappaci.png" alt="Logo FENAPPACI" className="w-full h-full object-contain rounded-full" />
           </div>
           <div>
             <h1 className="text-3xl font-display font-bold tracking-tight">FENAPPACI</h1>

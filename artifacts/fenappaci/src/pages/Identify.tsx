@@ -311,8 +311,11 @@ export default function Identify() {
   if (step === 'success') {
     return (
       <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95 duration-300">
-        <div className="w-24 h-24 bg-[#E8F5E9] text-[#2E7D32] rounded-full flex items-center justify-center mb-6 shadow-sm">
-          <CheckCircle className="w-12 h-12" />
+        <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg border-2 border-[#E8F5E9]">
+          <img src="/logo-fenappaci.png" alt="FENAPPACI" className="w-24 h-24 object-contain" />
+        </div>
+        <div className="w-10 h-10 bg-[#E8F5E9] rounded-full flex items-center justify-center mb-4 shadow-sm">
+          <CheckCircle className="w-6 h-6 text-[#2E7D32]" />
         </div>
         <h2 className="text-xl font-bold text-[#1B5E20] tracking-wide mb-1">PRODUCTEUR FENAPPACI</h2>
         <h3 className="text-2xl font-black text-[#1B5E20] mb-8 uppercase">Enregistré avec succès</h3>

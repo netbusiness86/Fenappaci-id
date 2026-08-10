@@ -31,7 +31,8 @@ export default function Profile() {
       <h2 className="text-2xl font-display font-bold text-[#1B5E20] mb-2">Mon Profil</h2>
 
       <Card className="border-none shadow-md overflow-hidden bg-white">
-        <div className="bg-[#1B5E20] h-24 relative">
+        <div className="bg-[#1B5E20] h-24 relative flex items-center justify-center">
+          <img src="/logo-fenappaci.png" alt="FENAPPACI" className="h-14 object-contain opacity-20" />
           <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-full p-1 shadow-lg">
             <div className="w-full h-full bg-[#E8F5E9] rounded-full flex items-center justify-center">
               <span className="text-2xl font-display font-bold text-[#1B5E20]">
