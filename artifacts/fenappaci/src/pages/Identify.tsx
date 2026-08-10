@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertTriangle, CheckCircle2, MapPin, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, CheckCircle2, MapPin, Loader2, Leaf } from 'lucide-react';
 import { PhotoCapture } from '@/components/PhotoCapture';
+import { FarmsStep, type FarmDraft } from '@/components/FarmsStep';
 
-type Step = 1 | 2 | 3 | 4 | 'summary' | 'success';
+type Step = 1 | 2 | 3 | 4 | 5 | 'summary' | 'success';
 
 type FormData = {
   nom: string;
@@ -47,6 +48,8 @@ type FormData = {
   photo_path: string | null;
   piece_recto: string | null;
   piece_verso: string | null;
+  // Exploitations (step 5)
+  farms: FarmDraft[];
 };
 
 const initialState: FormData = {
@@ -81,6 +84,7 @@ const initialState: FormData = {
   photo_path: null,
   piece_recto: null,
   piece_verso: null,
+  farms: [],
 };
 
 const districtRegions: Record<string, string> = {
@@ -185,6 +189,8 @@ export default function Identify() {
       }
       setStep(4);
     } else if (step === 4) {
+      setStep(5);
+    } else if (step === 5) {
       setStep('summary');
     }
   };
@@ -194,6 +200,7 @@ export default function Identify() {
     if (step === 2) setStep(1);
     else if (step === 3) setStep(2);
     else if (step === 4) setStep(3);
+    else if (step === 5) setStep(4);
   };
 
   const handleCancel = () => {
@@ -206,8 +213,45 @@ export default function Identify() {
     createProducteur.mutate(
       { data: formData as any },
       {
-        onSuccess: (res) => {
+        onSuccess: async (res) => {
           setCreatedProducteur(res);
+          // Créer les exploitations + parcelles associées
+          if (formData.farms.length > 0) {
+            try {
+              for (const farm of formData.farms) {
+                const farmRes = await fetch(`/api/producteurs/${res.id}/farms`, {
+                  method: 'POST', credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    nom: farm.nom || null, localite: farm.localite || null,
+                    superficie_ha: farm.superficie_ha ? parseFloat(farm.superficie_ha) : null,
+                    statut_foncier: farm.statut_foncier || null,
+                    annee_creation: farm.annee_creation ? parseInt(farm.annee_creation) : null,
+                    latitude: farm.latitude, longitude: farm.longitude,
+                    observations: farm.observations || null,
+                  }),
+                });
+                const farmData = await farmRes.json();
+                for (const plot of farm.plots) {
+                  await fetch(`/api/farms/${farmData.id}/plots`, {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      reference: plot.reference || null,
+                      culture_principale: plot.culture_principale || null,
+                      superficie: plot.superficie ? parseFloat(plot.superficie) : null,
+                      annee_plantation: plot.annee_plantation ? parseInt(plot.annee_plantation) : null,
+                      age_plantation: plot.age_plantation ? parseInt(plot.age_plantation) : null,
+                      etat: plot.etat || null,
+                      latitude: plot.latitude, longitude: plot.longitude,
+                    }),
+                  });
+                }
+              }
+            } catch {
+              // Producteur créé mais exploitations en échec partiel — on continue quand même
+            }
+          }
           setStep('success');
         },
         onError: () => {
@@ -315,6 +359,44 @@ export default function Identify() {
             </div>
           );
         })}
+
+        {/* Exploitations */}
+        {formData.farms.length > 0 && (
+          <div className="border rounded-xl overflow-hidden">
+            <div className="bg-[#1B5E20] text-white px-4 py-2 font-semibold text-sm flex items-center gap-2">
+              <Leaf className="w-4 h-4" />
+              Exploitations agricoles ({formData.farms.length})
+            </div>
+            <div className="p-4 bg-gray-50 space-y-3">
+              {formData.farms.map((farm, fi) => (
+                <div key={farm.id} className="border rounded-xl overflow-hidden">
+                  <div className="bg-gray-100 px-3 py-2 flex items-center gap-2">
+                    <span className="w-5 h-5 bg-[#1B5E20] text-white rounded-full text-xs flex items-center justify-center font-bold shrink-0">{fi + 1}</span>
+                    <span className="font-semibold text-sm text-gray-800">{farm.nom || `Exploitation ${fi + 1}`}</span>
+                    {farm.superficie_ha && <span className="text-xs text-gray-500 ml-1">· {farm.superficie_ha} ha</span>}
+                    {farm.statut_foncier && <span className="text-xs text-gray-500">· {farm.statut_foncier}</span>}
+                  </div>
+                  {farm.plots.length > 0 && (
+                    <div className="px-3 py-2 space-y-1">
+                      {farm.plots.map((p, pi) => (
+                        <div key={p.id} className="flex items-center gap-2 text-xs text-gray-600">
+                          <Leaf className="w-3 h-3 text-[#2E7D32] shrink-0" />
+                          <span className="font-medium">{p.reference || `Parcelle ${pi + 1}`}</span>
+                          {p.culture_principale && <span>— {p.culture_principale}</span>}
+                          {p.superficie && <span className="text-gray-400">· {p.superficie} ha</span>}
+                          {p.etat && <span className="ml-auto font-semibold text-[#2E7D32]">{p.etat}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {farm.plots.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-gray-400 italic">Aucune parcelle</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -372,10 +454,10 @@ export default function Identify() {
             {typeof step === 'number' && (
               <div className="mb-6 flex items-center justify-between">
                 <span className="text-sm font-bold text-[#2E7D32] tracking-wider uppercase">
-                  Étape {step} / 4
+                  Étape {step} / 5
                 </span>
                 <div className="flex gap-1.5">
-                  {[1, 2, 3, 4].map(i => (
+                  {[1, 2, 3, 4, 5].map(i => (
                     <div 
                       key={i} 
                       className={`w-2.5 h-2.5 rounded-full transition-colors ${i <= step ? 'bg-[#2E7D32]' : 'bg-gray-200'}`} 
@@ -835,6 +917,13 @@ export default function Identify() {
                   </div>
                 )}
 
+                {step === 5 && (
+                  <FarmsStep
+                    farms={formData.farms}
+                    onChange={farms => setFormData(prev => ({ ...prev, farms }))}
+                  />
+                )}
+
                 {step === 'summary' && renderSummary()}
               </motion.div>
             </AnimatePresence>
@@ -869,7 +958,7 @@ export default function Identify() {
             className="flex-[2] bg-[#F57C00] hover:bg-[#E65100] text-white font-bold h-12" 
             onClick={handleNext}
           >
-            {step === 4 ? 'Récapitulatif' : 'Continuer'}
+            {step === 5 ? 'Récapitulatif' : 'Continuer'}
           </Button>
         )}
       </div>

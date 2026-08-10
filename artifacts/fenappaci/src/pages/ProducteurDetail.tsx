@@ -1,5 +1,6 @@
 import { useParams, useLocation } from 'wouter';
 import { useGetProducteur, useDeleteProducteur } from '@workspace/api-client-react';
+import { FarmsManager } from '@/components/FarmsManager';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -226,6 +227,13 @@ export default function ProducteurDetail() {
             <p className="text-sm font-medium text-[#1B5E20]">Photo d'identité enregistrée</p>
           </div>
         )}
+
+        {/* EXPLOITATIONS & PARCELLES */}
+        <Section icon={<Leaf className="w-4 h-4" />} title="Exploitations agricoles">
+          <div className="py-3">
+            <FarmsManager producteurId={id!} />
+          </div>
+        </Section>
       </div>
 
       {/* ── Boutons fixés en bas ─────────────────────────────────────────── */}
