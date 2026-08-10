@@ -197,8 +197,15 @@ export default function EditProducteur() {
   };
 
   const handleSubmit = () => {
+    // UpdateProducteurBody utilise .optional() (pas .nullish()) — null est rejeté par Zod.
+    // On filtre toutes les valeurs null avant envoi.
+    const sanitized: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(formData)) {
+      if (v !== null) sanitized[k] = v;
+    }
+
     updateProducteur.mutate(
-      { id: id!, data: formData as any },
+      { id: id!, data: sanitized as any },
       {
         onSuccess: () => {
           setStep('success');
