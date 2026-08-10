@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, or } from "drizzle-orm";
 import { db, producteursTable, usersTable, cooperativesTable } from "@workspace/db";
 import {
   ListProducteursQueryParams,
@@ -13,8 +13,76 @@ import {
   GetProducteurResponse,
   UpdateProducteurResponse,
 } from "@workspace/api-zod";
+import { ObjectStorageService } from "../lib/objectStorage";
+import { getObjectAclPolicy } from "../lib/objectAcl";
 
 const router: IRouter = Router();
+const objectStorageService = new ObjectStorageService();
+
+/** Roles that bypass photo-path ownership checks. */
+const PRIVILEGED_ROLES = ["ADMIN", "DIRECTION"];
+
+/**
+ * Verify that `agentId` is allowed to claim `objectPath` as a photo asset,
+ * then stamp the object's ACL with this agent as owner.
+ *
+ * Rules (checked in order):
+ * 1. ACL present, owner == agentId → already claimed; no-op.
+ * 2. ACL present, owner != agentId → 403 (belongs to another agent).
+ * 3. No ACL (legacy/fresh) → check DB references:
+ *    a. Path referenced in another agent's producteur → 403 (takeover blocked).
+ *    b. Path unreferenced (fresh upload) or referenced only by this agent → claim it.
+ *
+ * Throws `{ status: 403 }` when the path belongs to another agent.
+ * Throws `{ status: 404 }` when the object does not exist in storage.
+ */
+async function verifyAndClaimObjectPath(objectPath: string, agentId: number): Promise<void> {
+  let objectFile;
+  try {
+    objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+  } catch {
+    throw { status: 404, message: `Fichier introuvable : ${objectPath}` };
+  }
+
+  const aclPolicy = await getObjectAclPolicy(objectFile);
+
+  if (aclPolicy?.owner) {
+    // ACL is authoritative — trust it unconditionally.
+    if (aclPolicy.owner !== String(agentId)) {
+      throw { status: 403, message: `Accès refusé : ce fichier appartient à un autre agent.` };
+    }
+    return; // Already claimed by this agent; nothing to do.
+  }
+
+  // No ACL yet. Before claiming, check that no other agent's producteur
+  // already references this path in the database (legacy path takeover guard).
+  const existingRefs = await db
+    .select({ agent_id: producteursTable.agent_id })
+    .from(producteursTable)
+    .where(
+      or(
+        eq(producteursTable.photo_path, objectPath),
+        eq(producteursTable.piece_recto, objectPath),
+        eq(producteursTable.piece_verso, objectPath),
+      ),
+    );
+
+  for (const ref of existingRefs) {
+    if (ref.agent_id !== null && ref.agent_id !== agentId) {
+      throw {
+        status: 403,
+        message: `Accès refusé : ce fichier est déjà associé à un autre dossier.`,
+      };
+    }
+  }
+
+  // Path is either a fresh upload (no references) or already belongs to this
+  // agent in the DB → safe to stamp ACL ownership now.
+  await objectStorageService.trySetObjectEntityAclPolicy(objectPath, {
+    owner: String(agentId),
+    visibility: "private",
+  });
+}
 
 function generateNumeroMembre(id: number): string {
   const year = new Date().getFullYear();
@@ -125,7 +193,32 @@ router.post("/producteurs", async (req: Request, res: Response): Promise<void> =
   }
 
   const data = parsed.data;
-  const agentId = req.session?.userId ?? null;
+  const agentId = req.session?.userId as number | undefined ?? null;
+
+  // For agents: verify ownership of any photo/piece paths before saving.
+  if (agentId) {
+    const [sessionUser] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, agentId));
+
+    if (sessionUser && !PRIVILEGED_ROLES.includes(sessionUser.role)) {
+      const pathsToCheck: string[] = [
+        (data as any).photo_path,
+        (data as any).piece_recto,
+        (data as any).piece_verso,
+      ].filter(Boolean);
+
+      for (const objectPath of pathsToCheck) {
+        try {
+          await verifyAndClaimObjectPath(objectPath, agentId);
+        } catch (err: any) {
+          res.status(err?.status ?? 403).json({ error: err?.message ?? "Accès refusé" });
+          return;
+        }
+      }
+    }
+  }
 
   const insertData: any = {
     nom: data.nom,
@@ -213,6 +306,33 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
   }
 
   const data = parsedBody.data as any;
+
+  // For agents: verify ownership of any photo/piece paths being assigned.
+  const sessionUserId = req.session?.userId as number | undefined;
+  if (sessionUserId) {
+    const [sessionUser] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, sessionUserId));
+
+    if (sessionUser && !PRIVILEGED_ROLES.includes(sessionUser.role)) {
+      const pathsToCheck: string[] = [
+        data.photo_path,
+        data.piece_recto,
+        data.piece_verso,
+      ].filter(Boolean);
+
+      for (const objectPath of pathsToCheck) {
+        try {
+          await verifyAndClaimObjectPath(objectPath, sessionUserId);
+        } catch (err: any) {
+          res.status(err?.status ?? 403).json({ error: err?.message ?? "Accès refusé" });
+          return;
+        }
+      }
+    }
+  }
+
   const updateData: any = { updated_at: new Date() };
 
   const fields = [

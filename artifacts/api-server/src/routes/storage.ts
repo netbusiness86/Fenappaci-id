@@ -1,14 +1,74 @@
 import { Readable } from 'stream';
 import { Router, type IRouter, type Request, type Response } from 'express';
+import { eq, or } from 'drizzle-orm';
+import { db, usersTable, producteursTable } from '@workspace/db';
 
 import {
   ObjectAccessDeniedError,
   ObjectNotFoundError,
   ObjectStorageService,
 } from '../lib/objectStorage';
+import { getObjectAclPolicy } from '../lib/objectAcl';
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+
+/** Roles that have unrestricted access to all private objects. */
+const PRIVILEGED_ROLES = ['ADMIN', 'DIRECTION'];
+
+/**
+ * Verify that the authenticated user may access the given object path.
+ *
+ * - ADMIN / DIRECTION → always allowed.
+ * - AGENT → checked against the object's immutable ACL owner field (set
+ *   server-side when a photo path is assigned to a producteur). Falls back
+ *   to a DB-column check for legacy objects that pre-date ACL enforcement.
+ *
+ * Returns true when access is granted, false otherwise.
+ */
+async function canUserAccessObject(userId: number, objectPath: string): Promise<boolean> {
+  const [user] = await db
+    .select({ role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+
+  if (!user) {
+    return false;
+  }
+
+  if (PRIVILEGED_ROLES.includes(user.role)) {
+    return true;
+  }
+
+  // Primary check: ACL metadata on the object (immutable, set server-side).
+  // Agents may only read objects whose ACL owner matches their userId.
+  try {
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+    const aclPolicy = await getObjectAclPolicy(objectFile);
+    if (aclPolicy?.owner) {
+      // ACL is present — it is authoritative; do not fall back to DB columns.
+      return aclPolicy.owner === String(userId);
+    }
+  } catch {
+    // Object not found or ACL unreadable — treated as access denied below.
+    return false;
+  }
+
+  // Legacy fallback: ACL not yet set (object uploaded before this feature).
+  // Check whether the path appears in one of this agent's producteurs.
+  const rows = await db
+    .select({ agent_id: producteursTable.agent_id })
+    .from(producteursTable)
+    .where(
+      or(
+        eq(producteursTable.photo_path, objectPath),
+        eq(producteursTable.piece_recto, objectPath),
+        eq(producteursTable.piece_verso, objectPath),
+      ),
+    );
+
+  return rows.some((row) => row.agent_id === userId);
+}
 
 function hasAuthenticatedSession(
   req: Request,
@@ -105,9 +165,12 @@ router.get(
  * Generate a short-lived presigned GET URL (1 hour) for a private object.
  * The client uses this URL to download directly from the bucket — no server proxy needed.
  * Requires auth so unauthenticated callers cannot mint read-capable URLs.
+ * Role-based ownership is enforced: agents may only obtain signed URLs for
+ * objects belonging to their own producteurs.
  */
 router.get('/storage/signed-url', async (req: Request, res: Response) => {
-  if (!req.session?.userId) {
+  const userId = req.session?.userId as number | undefined;
+  if (!userId) {
     res.status(401).json({ error: 'Authentification requise' });
     return;
   }
@@ -119,10 +182,17 @@ router.get('/storage/signed-url', async (req: Request, res: Response) => {
   }
 
   try {
+    // Enforce role-based ownership before minting the URL.
+    const allowed = await canUserAccessObject(userId, objectPath);
+    if (!allowed) {
+      res.status(403).json({ error: 'Accès refusé' });
+      return;
+    }
+
     const TTL_SEC = 3600; // 1 hour
     const signedUrl = await objectStorageService.getObjectEntitySignedUrl(
       objectPath,
-      { userId: req.session.userId as string, ttlSec: TTL_SEC },
+      { userId: String(userId), ttlSec: TTL_SEC },
     );
     const expiresAt = new Date(Date.now() + TTL_SEC * 1000).toISOString();
     res.json({ signedUrl, expiresAt });
@@ -132,7 +202,7 @@ router.get('/storage/signed-url', async (req: Request, res: Response) => {
       return;
     }
     if (error instanceof ObjectAccessDeniedError) {
-      res.status(403).json({ error: 'Access denied' });
+      res.status(403).json({ error: 'Accès refusé' });
       return;
     }
     req.log.error({ err: error }, 'Error generating signed URL');
@@ -144,15 +214,16 @@ router.get('/storage/signed-url', async (req: Request, res: Response) => {
  * GET /storage/objects/*
  *
  * Serve object entities from PRIVATE_OBJECT_DIR.
- * These are served from a separate path from /public-objects and can optionally
- * be protected with authentication or ACL checks based on the use case.
+ * Role-based ownership is enforced: agents may only download objects
+ * belonging to their own producteurs. ADMIN and DIRECTION have full access.
  */
 router.get('/storage/objects/*path', async (req: Request, res: Response) => {
   try {
     // Require session authentication before any file lookup — objects contain
     // sensitive PII (identity scans, photos) and we must not leak existence info
     // to unauthenticated callers via a 404 vs 401 difference.
-    if (!req.session?.userId) {
+    const userId = req.session?.userId as number | undefined;
+    if (!userId) {
       res.status(401).json({ error: "Authentification requise" });
       return;
     }
@@ -160,6 +231,14 @@ router.get('/storage/objects/*path', async (req: Request, res: Response) => {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
     const objectPath = `/objects/${wildcardPath}`;
+
+    // Enforce role-based ownership before fetching the file.
+    const allowed = await canUserAccessObject(userId, objectPath);
+    if (!allowed) {
+      res.status(403).json({ error: 'Accès refusé' });
+      return;
+    }
+
     const objectFile =
       await objectStorageService.getObjectEntityFile(objectPath);
 
