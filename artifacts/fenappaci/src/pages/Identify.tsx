@@ -214,8 +214,16 @@ export default function Identify() {
   };
 
   const handleSubmit = () => {
+    // Zod schema uses .optional() (undefined OK, null rejeté) — on doit
+    // supprimer les champs null et retirer `farms` qui est géré séparément.
+    const { farms: _farms, ...rest } = formData;
+    const sanitized: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(rest)) {
+      if (v !== null) sanitized[k] = v;
+    }
+
     createProducteur.mutate(
-      { data: formData as any },
+      { data: sanitized as any },
       {
         onSuccess: async (res) => {
           setCreatedProducteur(res);
