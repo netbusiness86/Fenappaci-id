@@ -6,6 +6,8 @@ import cooperativesRouter from "./cooperatives";
 import statsRouter from "./stats";
 import storageRouter from "./storage";
 import farmsRouter from "./farms";
+import productionsRouter from "./productions";
+import disponibilitesRouter from "./disponibilites";
 
 const router: IRouter = Router();
 
@@ -16,5 +18,7 @@ router.use(cooperativesRouter);
 router.use(statsRouter);
 router.use(storageRouter);
 router.use(farmsRouter);
+router.use(productionsRouter);
+router.use(disponibilitesRouter);
 
 export default router;

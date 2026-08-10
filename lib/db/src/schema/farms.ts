@@ -30,3 +30,25 @@ export const plotsTable = pgTable("plots", {
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const productionsTable = pgTable("productions", {
+  id: serial("id").primaryKey(),
+  plot_id: integer("plot_id").notNull().references(() => plotsTable.id, { onDelete: "cascade" }),
+  culture: text("culture"),
+  campagne: text("campagne"),
+  superficie_concernee: numeric("superficie_concernee", { precision: 10, scale: 4 }),
+  production_annuelle_estimee: numeric("production_annuelle_estimee", { precision: 12, scale: 2 }),
+  production_campagne_en_cours: numeric("production_campagne_en_cours", { precision: 12, scale: 2 }),
+  quantite_disponible: numeric("quantite_disponible", { precision: 12, scale: 2 }),
+  quantite_vente: numeric("quantite_vente", { precision: 12, scale: 2 }),
+  capacite_livraison: numeric("capacite_livraison", { precision: 12, scale: 2 }),
+  unite: text("unite"),
+  periode_recolte: text("periode_recolte"),
+  periode_disponibilite: text("periode_disponibilite"),
+  recherche_acheteur: text("recherche_acheteur").default("NON"),
+  quantite_recherchee: numeric("quantite_recherchee", { precision: 12, scale: 2 }),
+  prix_souhaite: numeric("prix_souhaite", { precision: 12, scale: 2 }),
+  observations: text("observations"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

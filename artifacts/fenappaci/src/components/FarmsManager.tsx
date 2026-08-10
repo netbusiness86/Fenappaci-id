@@ -15,8 +15,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Plus, Pencil, Trash2, Leaf, MapPin, ChevronDown, ChevronUp,
-  CheckCircle2, Loader2, ArrowLeft, Building2,
+  CheckCircle2, Loader2, ArrowLeft, Building2, TrendingUp,
 } from 'lucide-react';
+import { ProductionManager } from './ProductionManager';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -206,6 +207,7 @@ function FarmForm({ init, onSave, onCancel, saving }: {
 function PlotRow({ plot, farmId, qc }: { plot: Plot; farmId: number; qc: ReturnType<typeof useQueryClient> }) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
+  const [showProductions, setShowProductions] = useState(false);
 
   const update = useMutation({
     mutationFn: (data: Record<string, unknown>) => apiFetch(`/api/plots/${plot.id}`, { method: 'PATCH', body: JSON.stringify(data) }),
@@ -234,40 +236,57 @@ function PlotRow({ plot, farmId, qc }: { plot: Plot; farmId: number; qc: ReturnT
   }
 
   return (
-    <div className="ml-6 flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0">
-      <Leaf className="w-3 h-3 text-[#2E7D32] shrink-0" />
-      <div className="flex-1 min-w-0">
-        <span className="text-xs font-semibold text-gray-700">{plot.reference || 'Parcelle'}</span>
-        {plot.culture_principale && <span className="text-xs text-gray-500 ml-1">· {plot.culture_principale}</span>}
-        {plot.superficie != null && <span className="text-xs text-gray-400 ml-1">· {plot.superficie} ha</span>}
-        {plot.etat && <span className={cn("ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-          plot.etat === 'Très bon' || plot.etat === 'Bon' ? 'bg-green-100 text-green-700' :
-          plot.etat === 'Moyen' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700')}>
-          {plot.etat}
-        </span>}
+    <div className="ml-4 border-b border-gray-100 last:border-0">
+      {/* Plot header row */}
+      <div className="flex items-center gap-2 py-1.5">
+        <Leaf className="w-3 h-3 text-[#2E7D32] shrink-0" />
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-semibold text-gray-700">{plot.reference || 'Parcelle'}</span>
+          {plot.culture_principale && <span className="text-xs text-gray-500 ml-1">· {plot.culture_principale}</span>}
+          {plot.superficie != null && <span className="text-xs text-gray-400 ml-1">· {plot.superficie} ha</span>}
+          {plot.etat && <span className={cn("ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+            plot.etat === 'Très bon' || plot.etat === 'Bon' ? 'bg-green-100 text-green-700' :
+            plot.etat === 'Moyen' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700')}>
+            {plot.etat}
+          </span>}
+        </div>
+        <button type="button" onClick={() => setShowProductions(v => !v)}
+          className="p-1 rounded hover:bg-[#FFF3E0] shrink-0" title="Productions">
+          <TrendingUp className={cn("w-3 h-3", showProductions ? "text-[#F57C00]" : "text-gray-400")} />
+        </button>
+        <button type="button" onClick={() => setEditing(true)} className="p-1 rounded hover:bg-gray-100 shrink-0">
+          <Pencil className="w-3 h-3 text-[#1B5E20]" />
+        </button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button type="button" className="p-1 rounded hover:bg-red-50 shrink-0">
+              <Trash2 className="w-3 h-3 text-red-500" />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer cette parcelle ?</AlertDialogTitle>
+              <AlertDialogDescription>La parcelle « {plot.reference || 'sans référence'} » sera définitivement supprimée.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={() => del.mutate()}>
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-      <button type="button" onClick={() => setEditing(true)} className="p-1 rounded hover:bg-gray-100 shrink-0">
-        <Pencil className="w-3 h-3 text-[#1B5E20]" />
-      </button>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <button type="button" className="p-1 rounded hover:bg-red-50 shrink-0">
-            <Trash2 className="w-3 h-3 text-red-500" />
-          </button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette parcelle ?</AlertDialogTitle>
-            <AlertDialogDescription>La parcelle « {plot.reference || 'sans référence'} » sera définitivement supprimée.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={() => del.mutate()}>
-              Supprimer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Productions panel */}
+      {showProductions && (
+        <div className="ml-4 mb-2 bg-[#FFFDE7] border border-[#FFF9C4] rounded-xl p-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <TrendingUp className="w-3.5 h-3.5 text-[#F57C00]" />
+            <span className="text-[10px] uppercase font-bold text-[#E65100] tracking-wider">Productions</span>
+          </div>
+          <ProductionManager plotId={plot.id} />
+        </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,7 @@ import EditProducteur from '@/pages/EditProducteur';
 import DetailProducteur from '@/pages/DetailProducteur';
 import SearchPage from '@/pages/Search';
 import Profile from '@/pages/Profile';
+import Disponibilites from '@/pages/Disponibilites';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -65,6 +66,9 @@ function Router() {
           </Route>
           <Route path="/rechercher">
             <ProtectedRoute><SearchPage /></ProtectedRoute>
+          </Route>
+          <Route path="/disponibilites">
+            <ProtectedRoute><Disponibilites /></ProtectedRoute>
           </Route>
           <Route path="/profil">
             <ProtectedRoute><Profile /></ProtectedRoute>

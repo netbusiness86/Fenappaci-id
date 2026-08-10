@@ -15,6 +15,16 @@ import {
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+export type ProductionDraft = {
+  id: string;
+  culture: string; campagne: string; superficie_concernee: string;
+  production_annuelle_estimee: string; production_campagne_en_cours: string;
+  quantite_disponible: string; quantite_vente: string; capacite_livraison: string;
+  unite: string; periode_recolte: string; periode_disponibilite: string;
+  recherche_acheteur: 'OUI' | 'NON';
+  quantite_recherchee: string; prix_souhaite: string; observations: string;
+};
+
 export type PlotDraft = {
   id: string; // local UUID
   reference: string;
@@ -25,6 +35,7 @@ export type PlotDraft = {
   etat: string;
   latitude: number | null;
   longitude: number | null;
+  productions: ProductionDraft[];
 };
 
 export type FarmDraft = {
@@ -44,7 +55,7 @@ const emptyPlot = (): PlotDraft => ({
   id: crypto.randomUUID(),
   reference: '', culture_principale: '', superficie: '',
   annee_plantation: '', age_plantation: '', etat: '',
-  latitude: null, longitude: null,
+  latitude: null, longitude: null, productions: [],
 });
 
 const emptyFarm = (): FarmDraft => ({

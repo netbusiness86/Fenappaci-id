@@ -11,8 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertTriangle, CheckCircle2, MapPin, Loader2, Leaf } from 'lucide-react';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { FarmsStep, type FarmDraft } from '@/components/FarmsStep';
+import { ProductionStep } from '@/components/ProductionStep';
 
-type Step = 1 | 2 | 3 | 4 | 5 | 'summary' | 'success';
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 'summary' | 'success';
 
 type FormData = {
   nom: string;
@@ -191,6 +192,8 @@ export default function Identify() {
     } else if (step === 4) {
       setStep(5);
     } else if (step === 5) {
+      setStep(6);
+    } else if (step === 6) {
       setStep('summary');
     }
   };
@@ -201,6 +204,7 @@ export default function Identify() {
     else if (step === 3) setStep(2);
     else if (step === 4) setStep(3);
     else if (step === 5) setStep(4);
+    else if (step === 6) setStep(5);
   };
 
   const handleCancel = () => {
@@ -233,7 +237,7 @@ export default function Identify() {
                 });
                 const farmData = await farmRes.json();
                 for (const plot of farm.plots) {
-                  await fetch(`/api/farms/${farmData.id}/plots`, {
+                  const plotRes = await fetch(`/api/farms/${farmData.id}/plots`, {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -246,6 +250,30 @@ export default function Identify() {
                       latitude: plot.latitude, longitude: plot.longitude,
                     }),
                   });
+                  const plotData = await plotRes.json();
+                  for (const prod of plot.productions ?? []) {
+                    await fetch(`/api/plots/${plotData.id}/productions`, {
+                      method: 'POST', credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        culture: prod.culture || null,
+                        campagne: prod.campagne || null,
+                        superficie_concernee: prod.superficie_concernee ? parseFloat(prod.superficie_concernee) : null,
+                        production_annuelle_estimee: prod.production_annuelle_estimee ? parseFloat(prod.production_annuelle_estimee) : null,
+                        production_campagne_en_cours: prod.production_campagne_en_cours ? parseFloat(prod.production_campagne_en_cours) : null,
+                        quantite_disponible: prod.quantite_disponible ? parseFloat(prod.quantite_disponible) : null,
+                        quantite_vente: prod.quantite_vente ? parseFloat(prod.quantite_vente) : null,
+                        capacite_livraison: prod.capacite_livraison ? parseFloat(prod.capacite_livraison) : null,
+                        unite: prod.unite || 'Kg',
+                        periode_recolte: prod.periode_recolte || null,
+                        periode_disponibilite: prod.periode_disponibilite || null,
+                        recherche_acheteur: prod.recherche_acheteur || 'NON',
+                        quantite_recherchee: prod.quantite_recherchee ? parseFloat(prod.quantite_recherchee) : null,
+                        prix_souhaite: prod.prix_souhaite ? parseFloat(prod.prix_souhaite) : null,
+                        observations: prod.observations || null,
+                      }),
+                    });
+                  }
                 }
               }
             } catch {
@@ -454,10 +482,10 @@ export default function Identify() {
             {typeof step === 'number' && (
               <div className="mb-6 flex items-center justify-between">
                 <span className="text-sm font-bold text-[#2E7D32] tracking-wider uppercase">
-                  Étape {step} / 5
+                  Étape {step} / 6
                 </span>
                 <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5].map(i => (
+                  {[1, 2, 3, 4, 5, 6].map(i => (
                     <div 
                       key={i} 
                       className={`w-2.5 h-2.5 rounded-full transition-colors ${i <= step ? 'bg-[#2E7D32]' : 'bg-gray-200'}`} 
@@ -924,6 +952,13 @@ export default function Identify() {
                   />
                 )}
 
+                {step === 6 && (
+                  <ProductionStep
+                    farms={formData.farms}
+                    onChange={farms => setFormData(prev => ({ ...prev, farms }))}
+                  />
+                )}
+
                 {step === 'summary' && renderSummary()}
               </motion.div>
             </AnimatePresence>
@@ -958,7 +993,7 @@ export default function Identify() {
             className="flex-[2] bg-[#F57C00] hover:bg-[#E65100] text-white font-bold h-12" 
             onClick={handleNext}
           >
-            {step === 5 ? 'Récapitulatif' : 'Continuer'}
+            {step === 6 ? 'Récapitulatif' : 'Continuer'}
           </Button>
         )}
       </div>
