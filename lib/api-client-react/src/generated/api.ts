@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * API FENAPPACI — Identification des Producteurs Agricoles de Côte d'Ivoire
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 import {
   useMutation,
@@ -145,7 +145,7 @@ export const getLoginUrl = () => {
 }
 
 /**
- * @summary Login with email and password
+ * @summary Login
  */
 export const login = async (loginInput: LoginInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthUser> => {
 
@@ -194,7 +194,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type LoginMutationError = ErrorType<void>
 
     /**
- * @summary Login with email and password
+ * @summary Login
  */
 export const useLogin = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,{data: BodyType<LoginInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

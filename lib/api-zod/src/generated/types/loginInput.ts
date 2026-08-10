@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * API FENAPPACI — Identification des Producteurs Agricoles de Côte d'Ivoire
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 
 export interface LoginInput {

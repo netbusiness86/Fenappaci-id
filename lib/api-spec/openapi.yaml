@@ -1,23 +1,17 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.2.0
+  version: 0.3.0
   description: API FENAPPACI — Identification des Producteurs Agricoles de Côte d'Ivoire
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: auth
-    description: Authentication
   - name: producteurs
-    description: Producteur operations
   - name: cooperatives
-    description: Cooperative operations
   - name: stats
-    description: Statistics
 
 paths:
   /healthz:
@@ -37,7 +31,7 @@ paths:
     post:
       operationId: login
       tags: [auth]
-      summary: Login with email and password
+      summary: Login
       requestBody:
         required: true
         content:
@@ -46,7 +40,7 @@ paths:
               $ref: "#/components/schemas/LoginInput"
       responses:
         "200":
-          description: Logged in successfully
+          description: Logged in
           content:
             application/json:
               schema:
@@ -276,34 +270,71 @@ components:
 
     Producteur:
       type: object
-      required: [id, numero_membre, nom, prenoms, village, status, created_at]
+      required: [id, numero_membre, nom, prenoms, status, created_at]
       properties:
         id:
           type: number
         numero_membre:
           type: string
+        # Identité
         nom:
           type: string
         prenoms:
           type: string
-        date_naissance:
-          type: ["string", "null"]
         sexe:
           type: ["string", "null"]
-        cin:
+        date_naissance:
+          type: ["string", "null"]
+        lieu_naissance:
+          type: ["string", "null"]
+        nationalite:
+          type: ["string", "null"]
+        situation_matrimoniale:
           type: ["string", "null"]
         telephone:
           type: ["string", "null"]
-        village:
-          type: string
-        sous_prefecture:
+        telephone_secondaire:
+          type: ["string", "null"]
+        adresse:
+          type: ["string", "null"]
+        # Pièce d'identité
+        cin:
+          type: ["string", "null"]
+        type_piece:
+          type: ["string", "null"]
+        numero_piece:
+          type: ["string", "null"]
+        date_delivrance:
+          type: ["string", "null"]
+        date_expiration:
+          type: ["string", "null"]
+        # Localisation
+        district:
           type: ["string", "null"]
         region:
           type: ["string", "null"]
+        departement:
+          type: ["string", "null"]
+        sous_prefecture:
+          type: ["string", "null"]
+        commune:
+          type: ["string", "null"]
+        village:
+          type: ["string", "null"]
+        # Coopérative
         cooperative_id:
           type: ["number", "null"]
         cooperative_nom:
           type: ["string", "null"]
+        membre_cooperative:
+          type: ["boolean", "null"]
+        cooperative_nom_libre:
+          type: ["string", "null"]
+        cooperative_numero_libre:
+          type: ["string", "null"]
+        cooperative_fonction:
+          type: ["string", "null"]
+        # Meta
         cultures:
           type: ["string", "null"]
         superficie_ha:
@@ -321,26 +352,61 @@ components:
 
     ProducteurInput:
       type: object
-      required: [nom, prenoms, village]
+      required: [nom, prenoms]
       properties:
+        # Identité
         nom:
           type: string
         prenoms:
           type: string
-        date_naissance:
-          type: string
         sexe:
           type: string
-        cin:
+        date_naissance:
+          type: string
+        lieu_naissance:
+          type: string
+        nationalite:
+          type: string
+        situation_matrimoniale:
           type: string
         telephone:
           type: string
-        village:
+        telephone_secondaire:
           type: string
-        sous_prefecture:
+        adresse:
+          type: string
+        # Pièce d'identité
+        type_piece:
+          type: string
+        numero_piece:
+          type: string
+        date_delivrance:
+          type: string
+        date_expiration:
+          type: string
+        # Localisation
+        district:
           type: string
         region:
           type: string
+        departement:
+          type: string
+        sous_prefecture:
+          type: string
+        commune:
+          type: string
+        village:
+          type: string
+        # Coopérative
+        membre_cooperative:
+          type: boolean
+        cooperative_nom_libre:
+          type: string
+        cooperative_numero_libre:
+          type: string
+        cooperative_fonction:
+          type: string
+        # Meta
         cooperative_id:
           type: number
         cultures:
@@ -357,19 +423,49 @@ components:
           type: string
         prenoms:
           type: string
-        date_naissance:
-          type: string
         sexe:
           type: string
-        cin:
+        date_naissance:
+          type: string
+        lieu_naissance:
+          type: string
+        nationalite:
+          type: string
+        situation_matrimoniale:
           type: string
         telephone:
           type: string
-        village:
+        telephone_secondaire:
+          type: string
+        adresse:
+          type: string
+        type_piece:
+          type: string
+        numero_piece:
+          type: string
+        date_delivrance:
+          type: string
+        date_expiration:
+          type: string
+        district:
+          type: string
+        region:
+          type: string
+        departement:
           type: string
         sous_prefecture:
           type: string
-        region:
+        commune:
+          type: string
+        village:
+          type: string
+        membre_cooperative:
+          type: boolean
+        cooperative_nom_libre:
+          type: string
+        cooperative_numero_libre:
+          type: string
+        cooperative_fonction:
           type: string
         cooperative_id:
           type: number

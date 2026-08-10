@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * API FENAPPACI — Identification des Producteurs Agricoles de Côte d'Ivoire
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 export interface HealthStatus {
   status: string;
@@ -41,22 +41,55 @@ export interface Producteur {
   nom: string;
   prenoms: string;
   /** @nullable */
+  sexe?: string | null;
+  /** @nullable */
   date_naissance?: string | null;
   /** @nullable */
-  sexe?: string | null;
+  lieu_naissance?: string | null;
+  /** @nullable */
+  nationalite?: string | null;
+  /** @nullable */
+  situation_matrimoniale?: string | null;
+  /** @nullable */
+  telephone?: string | null;
+  /** @nullable */
+  telephone_secondaire?: string | null;
+  /** @nullable */
+  adresse?: string | null;
   /** @nullable */
   cin?: string | null;
   /** @nullable */
-  telephone?: string | null;
-  village: string;
+  type_piece?: string | null;
+  /** @nullable */
+  numero_piece?: string | null;
+  /** @nullable */
+  date_delivrance?: string | null;
+  /** @nullable */
+  date_expiration?: string | null;
+  /** @nullable */
+  district?: string | null;
+  /** @nullable */
+  region?: string | null;
+  /** @nullable */
+  departement?: string | null;
   /** @nullable */
   sous_prefecture?: string | null;
   /** @nullable */
-  region?: string | null;
+  commune?: string | null;
+  /** @nullable */
+  village?: string | null;
   /** @nullable */
   cooperative_id?: number | null;
   /** @nullable */
   cooperative_nom?: string | null;
+  /** @nullable */
+  membre_cooperative?: boolean | null;
+  /** @nullable */
+  cooperative_nom_libre?: string | null;
+  /** @nullable */
+  cooperative_numero_libre?: string | null;
+  /** @nullable */
+  cooperative_fonction?: string | null;
   /** @nullable */
   cultures?: string | null;
   /** @nullable */
@@ -74,13 +107,28 @@ export interface Producteur {
 export interface ProducteurInput {
   nom: string;
   prenoms: string;
-  date_naissance?: string;
   sexe?: string;
-  cin?: string;
+  date_naissance?: string;
+  lieu_naissance?: string;
+  nationalite?: string;
+  situation_matrimoniale?: string;
   telephone?: string;
-  village: string;
-  sous_prefecture?: string;
+  telephone_secondaire?: string;
+  adresse?: string;
+  type_piece?: string;
+  numero_piece?: string;
+  date_delivrance?: string;
+  date_expiration?: string;
+  district?: string;
   region?: string;
+  departement?: string;
+  sous_prefecture?: string;
+  commune?: string;
+  village?: string;
+  membre_cooperative?: boolean;
+  cooperative_nom_libre?: string;
+  cooperative_numero_libre?: string;
+  cooperative_fonction?: string;
   cooperative_id?: number;
   cultures?: string;
   superficie_ha?: number;
@@ -90,13 +138,28 @@ export interface ProducteurInput {
 export interface ProducteurUpdate {
   nom?: string;
   prenoms?: string;
-  date_naissance?: string;
   sexe?: string;
-  cin?: string;
+  date_naissance?: string;
+  lieu_naissance?: string;
+  nationalite?: string;
+  situation_matrimoniale?: string;
   telephone?: string;
-  village?: string;
-  sous_prefecture?: string;
+  telephone_secondaire?: string;
+  adresse?: string;
+  type_piece?: string;
+  numero_piece?: string;
+  date_delivrance?: string;
+  date_expiration?: string;
+  district?: string;
   region?: string;
+  departement?: string;
+  sous_prefecture?: string;
+  commune?: string;
+  village?: string;
+  membre_cooperative?: boolean;
+  cooperative_nom_libre?: string;
+  cooperative_numero_libre?: string;
+  cooperative_fonction?: string;
   cooperative_id?: number;
   cultures?: string;
   superficie_ha?: number;

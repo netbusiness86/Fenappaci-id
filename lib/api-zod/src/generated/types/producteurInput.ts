@@ -3,19 +3,34 @@
  * Do not edit manually.
  * Api
  * API FENAPPACI — Identification des Producteurs Agricoles de Côte d'Ivoire
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 
 export interface ProducteurInput {
   nom: string;
   prenoms: string;
-  date_naissance?: string;
   sexe?: string;
-  cin?: string;
+  date_naissance?: string;
+  lieu_naissance?: string;
+  nationalite?: string;
+  situation_matrimoniale?: string;
   telephone?: string;
-  village: string;
-  sous_prefecture?: string;
+  telephone_secondaire?: string;
+  adresse?: string;
+  type_piece?: string;
+  numero_piece?: string;
+  date_delivrance?: string;
+  date_expiration?: string;
+  district?: string;
   region?: string;
+  departement?: string;
+  sous_prefecture?: string;
+  commune?: string;
+  village?: string;
+  membre_cooperative?: boolean;
+  cooperative_nom_libre?: string;
+  cooperative_numero_libre?: string;
+  cooperative_fonction?: string;
   cooperative_id?: number;
   cultures?: string;
   superficie_ha?: number;

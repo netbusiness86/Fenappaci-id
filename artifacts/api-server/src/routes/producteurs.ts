@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, ilike, or, sql, desc } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 import { db, producteursTable, usersTable, cooperativesTable } from "@workspace/db";
 import {
   ListProducteursQueryParams,
@@ -18,7 +18,7 @@ const router: IRouter = Router();
 
 function generateNumeroMembre(id: number): string {
   const year = new Date().getFullYear();
-  return `FENA-${year}-${String(id).padStart(5, "0")}`;
+  return `FEN-CI-${year}-${String(id).padStart(6, "0")}`;
 }
 
 async function serializeProducteur(p: typeof producteursTable.$inferSelect) {
@@ -37,17 +37,38 @@ async function serializeProducteur(p: typeof producteursTable.$inferSelect) {
   return {
     id: p.id,
     numero_membre: p.numero_membre,
+    // Identité
     nom: p.nom,
     prenoms: p.prenoms,
-    date_naissance: p.date_naissance ?? null,
     sexe: p.sexe ?? null,
-    cin: p.cin ?? null,
+    date_naissance: p.date_naissance ?? null,
+    lieu_naissance: (p as any).lieu_naissance ?? null,
+    nationalite: (p as any).nationalite ?? null,
+    situation_matrimoniale: (p as any).situation_matrimoniale ?? null,
     telephone: p.telephone ?? null,
-    village: p.village,
-    sous_prefecture: p.sous_prefecture ?? null,
+    telephone_secondaire: (p as any).telephone_secondaire ?? null,
+    adresse: (p as any).adresse ?? null,
+    // Pièce d'identité
+    cin: p.cin ?? null,
+    type_piece: (p as any).type_piece ?? null,
+    numero_piece: (p as any).numero_piece ?? null,
+    date_delivrance: (p as any).date_delivrance ?? null,
+    date_expiration: (p as any).date_expiration ?? null,
+    // Localisation
+    district: (p as any).district ?? null,
     region: p.region ?? null,
+    departement: p.departement ?? null,
+    sous_prefecture: p.sous_prefecture ?? null,
+    commune: (p as any).commune ?? null,
+    village: p.village ?? null,
+    // Coopérative
     cooperative_id: p.cooperative_id ?? null,
     cooperative_nom,
+    membre_cooperative: (p as any).membre_cooperative ?? null,
+    cooperative_nom_libre: (p as any).cooperative_nom_libre ?? null,
+    cooperative_numero_libre: (p as any).cooperative_numero_libre ?? null,
+    cooperative_fonction: (p as any).cooperative_fonction ?? null,
+    // Meta
     cultures: p.cultures ?? null,
     superficie_ha: p.superficie_ha ? parseFloat(p.superficie_ha) : null,
     photo_path: p.photo_path ?? null,
@@ -77,7 +98,8 @@ router.get("/producteurs", async (req: Request, res: Response): Promise<void> =>
         p.nom.toLowerCase().includes(s) ||
         p.prenoms.toLowerCase().includes(s) ||
         p.numero_membre.toLowerCase().includes(s) ||
-        (p.cin && p.cin.toLowerCase().includes(s)),
+        (p.cin && p.cin.toLowerCase().includes(s)) ||
+        ((p as any).numero_piece && (p as any).numero_piece.toLowerCase().includes(s)),
     );
   }
   if (region) rows = rows.filter((p) => p.region?.toLowerCase().includes(region.toLowerCase()));
@@ -98,16 +120,39 @@ router.post("/producteurs", async (req: Request, res: Response): Promise<void> =
   const data = parsed.data;
   const agentId = req.session?.userId ?? null;
 
-  const [inserted] = await db
-    .insert(producteursTable)
-    .values({
-      ...data,
-      cooperative_id: data.cooperative_id ?? null,
-      superficie_ha: data.superficie_ha !== undefined ? String(data.superficie_ha) : null,
-      numero_membre: "TEMP",
-      agent_id: agentId,
-    })
-    .returning();
+  const insertData: any = {
+    nom: data.nom,
+    prenoms: data.prenoms,
+    sexe: data.sexe ?? null,
+    date_naissance: data.date_naissance ?? null,
+    lieu_naissance: data.lieu_naissance ?? null,
+    nationalite: data.nationalite ?? "Ivoirienne",
+    situation_matrimoniale: data.situation_matrimoniale ?? null,
+    telephone: data.telephone ?? null,
+    telephone_secondaire: data.telephone_secondaire ?? null,
+    adresse: data.adresse ?? null,
+    type_piece: data.type_piece ?? null,
+    numero_piece: data.numero_piece ?? null,
+    date_delivrance: data.date_delivrance ?? null,
+    date_expiration: data.date_expiration ?? null,
+    district: data.district ?? null,
+    region: data.region ?? null,
+    departement: data.departement ?? null,
+    sous_prefecture: data.sous_prefecture ?? null,
+    commune: data.commune ?? null,
+    village: data.village ?? "",
+    cooperative_id: data.cooperative_id ?? null,
+    membre_cooperative: data.membre_cooperative ?? false,
+    cooperative_nom_libre: data.cooperative_nom_libre ?? null,
+    cooperative_numero_libre: data.cooperative_numero_libre ?? null,
+    cooperative_fonction: data.cooperative_fonction ?? null,
+    cultures: data.cultures ?? null,
+    superficie_ha: data.superficie_ha !== undefined ? String(data.superficie_ha) : null,
+    numero_membre: "TEMP",
+    agent_id: agentId,
+  };
+
+  const [inserted] = await db.insert(producteursTable).values(insertData).returning();
 
   const numero_membre = generateNumeroMembre(inserted.id);
   const [updated] = await db
@@ -153,15 +198,28 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  const data = parsedBody.data;
+  const data = parsedBody.data as any;
+  const updateData: any = { updated_at: new Date() };
+
+  const fields = [
+    "nom", "prenoms", "sexe", "date_naissance", "lieu_naissance", "nationalite",
+    "situation_matrimoniale", "telephone", "telephone_secondaire", "adresse",
+    "type_piece", "numero_piece", "date_delivrance", "date_expiration",
+    "district", "region", "departement", "sous_prefecture", "commune", "village",
+    "cooperative_id", "membre_cooperative", "cooperative_nom_libre",
+    "cooperative_numero_libre", "cooperative_fonction", "cultures",
+    "superficie_ha", "photo_path", "status",
+  ];
+
+  for (const field of fields) {
+    if (data[field] !== undefined) {
+      updateData[field] = field === "superficie_ha" ? String(data[field]) : data[field];
+    }
+  }
+
   const [updated] = await db
     .update(producteursTable)
-    .set({
-      ...data,
-      cooperative_id: data.cooperative_id !== undefined ? data.cooperative_id : undefined,
-      superficie_ha: data.superficie_ha !== undefined ? String(data.superficie_ha) : undefined,
-      updated_at: new Date(),
-    })
+    .set(updateData)
     .where(eq(producteursTable.id, id))
     .returning();
 

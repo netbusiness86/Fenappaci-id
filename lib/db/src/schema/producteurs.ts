@@ -1,20 +1,46 @@
-import { pgTable, serial, text, decimal, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, decimal, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const producteursTable = pgTable("producteurs", {
   id: serial("id").primaryKey(),
   numero_membre: text("numero_membre").notNull().unique(),
+
+  // Étape 1 — Identité
   nom: text("nom").notNull(),
   prenoms: text("prenoms").notNull(),
-  date_naissance: text("date_naissance"),
   sexe: text("sexe"),
-  cin: text("cin"),
+  date_naissance: text("date_naissance"),
+  lieu_naissance: text("lieu_naissance"),
+  nationalite: text("nationalite").default("Ivoirienne"),
+  situation_matrimoniale: text("situation_matrimoniale"),
   telephone: text("telephone"),
-  village: text("village").notNull(),
-  sous_prefecture: text("sous_prefecture"),
+  telephone_secondaire: text("telephone_secondaire"),
+  adresse: text("adresse"),
+
+  // Étape 2 — Pièce d'identité
+  cin: text("cin"), // kept for backward compat (= numero_piece)
+  type_piece: text("type_piece"),
+  numero_piece: text("numero_piece"),
+  date_delivrance: text("date_delivrance"),
+  date_expiration: text("date_expiration"),
+
+  // Étape 3 — Localisation
+  district: text("district"),
   region: text("region"),
+  departement: text("departement"),
+  sous_prefecture: text("sous_prefecture"),
+  commune: text("commune"),
+  village: text("village").notNull().default(""),
+
+  // Étape 4 — Coopérative
   cooperative_id: integer("cooperative_id"),
+  membre_cooperative: boolean("membre_cooperative").default(false),
+  cooperative_nom_libre: text("cooperative_nom_libre"),
+  cooperative_numero_libre: text("cooperative_numero_libre"),
+  cooperative_fonction: text("cooperative_fonction"),
+
+  // Meta
   cultures: text("cultures"),
   superficie_ha: decimal("superficie_ha", { precision: 10, scale: 2 }),
   photo_path: text("photo_path"),
