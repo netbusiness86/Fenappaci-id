@@ -38,6 +38,14 @@ export class ObjectNotFoundError extends Error {
   }
 }
 
+export class ObjectAccessDeniedError extends Error {
+  constructor() {
+    super('Access denied');
+    this.name = 'ObjectAccessDeniedError';
+    Object.setPrototypeOf(this, ObjectAccessDeniedError.prototype);
+  }
+}
+
 export class ObjectStorageService {
   constructor() {}
 
@@ -192,6 +200,38 @@ export class ObjectStorageService {
     const objectFile = await this.getObjectEntityFile(normalizedPath);
     await setObjectAclPolicy(objectFile, aclPolicy);
     return normalizedPath;
+  }
+
+  async getObjectEntitySignedUrl(
+    objectPath: string,
+    options: { userId: string; ttlSec?: number },
+  ): Promise<string> {
+    const { userId, ttlSec = 3600 } = options;
+    const objectFile = await this.getObjectEntityFile(objectPath);
+
+    // Enforce ACL when a policy exists on the object.
+    // Objects without a policy default to "allow" to maintain parity with the
+    // existing proxy route (which only checks session auth). Once Task #10
+    // sets an ownership policy on every object, this check will enforce full
+    // access control.
+    const aclPolicy = await getObjectAclPolicy(objectFile);
+    if (aclPolicy) {
+      const allowed = await canAccessObject({
+        userId,
+        objectFile,
+        requestedPermission: ObjectPermission.READ,
+      });
+      if (!allowed) {
+        throw new ObjectAccessDeniedError();
+      }
+    }
+
+    return signObjectURL({
+      bucketName: objectFile.bucket.name,
+      objectName: objectFile.name,
+      method: 'GET',
+      ttlSec,
+    });
   }
 
   async canAccessObjectEntity({

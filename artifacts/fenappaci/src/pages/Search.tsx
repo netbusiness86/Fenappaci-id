@@ -1,12 +1,22 @@
 import { useState } from 'react';
 import { useListProducteurs, useListCooperatives, getListProducteursQueryKey } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
-import { Search as SearchIcon, MapPin, Building2, User, Pencil } from 'lucide-react';
+import { Search as SearchIcon, MapPin, Building2, User, Pencil, ImageOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useLocation } from 'wouter';
+import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
+
+/** Small circular avatar backed by a presigned URL for the search result list. */
+function ProducerThumbnail({ photoPath, nom }: { photoPath: string | null | undefined; nom: string }) {
+  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(photoPath);
+  if (!photoPath) return <User className="w-6 h-6 text-muted-foreground" />;
+  if (isLoading) return <div className="w-6 h-6 rounded-full bg-gray-200 animate-pulse" />;
+  if (isError || !signedUrl) return <ImageOff className="w-5 h-5 text-red-300" aria-label="Photo introuvable" />;
+  return <img src={signedUrl} alt={nom} className="w-full h-full object-cover" onError={invalidate} />;
+}
 
 export default function SearchPage() {
   const [, navigate] = useLocation();
@@ -97,11 +107,7 @@ export default function SearchPage() {
               <div key={p.id} className="bg-white p-4 rounded-2xl border shadow-sm flex flex-col gap-3 active:scale-[0.98] transition-transform">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-muted rounded-full flex-none flex items-center justify-center overflow-hidden">
-                    {p.photo_path ? (
-                      <img src={p.photo_path} alt={p.nom} className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-6 h-6 text-muted-foreground" />
-                    )}
+                    <ProducerThumbnail photoPath={p.photo_path} nom={p.nom} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">

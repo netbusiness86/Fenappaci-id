@@ -17,15 +17,35 @@ import {
 import {
   ArrowLeft, Pencil, Trash2, User, Phone, MapPin, FileText,
   Building2, Leaf, CheckCircle2, AlertTriangle,
-  Navigation, Loader2,
+  Navigation, Loader2, ImageOff,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function val(v: unknown): string | null {
   if (v == null || v === '') return null;
   return String(v);
+}
+
+/** Avatar backed by a presigned URL — shows placeholder on load/error. */
+function SignedAvatar({
+  objectPath,
+  nom,
+  size = 'lg',
+}: {
+  objectPath: string | null | undefined;
+  nom: string;
+  size?: 'sm' | 'lg';
+}) {
+  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(objectPath);
+  const iconSize = size === 'lg' ? 'w-10 h-10' : 'w-6 h-6';
+
+  if (!objectPath) return <User className={`${iconSize} text-white/60`} />;
+  if (isLoading) return <Loader2 className={`${iconSize} text-white/60 animate-spin`} />;
+  if (isError || !signedUrl) return <ImageOff className={`${iconSize} text-white/40`} aria-label="Photo introuvable" />;
+  return <img src={signedUrl} alt={nom} className="w-full h-full object-cover" onError={invalidate} />;
 }
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
@@ -124,11 +144,7 @@ export default function ProducteurDetail() {
 
         <div className="flex items-center gap-4">
           <div className="w-20 h-20 rounded-full bg-white/10 border-2 border-white/30 flex-none flex items-center justify-center overflow-hidden shadow-lg">
-            {p.photo_path ? (
-              <img src={`/api/storage/objects${p.photo_path}`} alt={p.nom} className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-10 h-10 text-white/60" />
-            )}
+            <SignedAvatar objectPath={p.photo_path} nom={p.nom} size="lg" />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-black leading-tight uppercase tracking-wide">

@@ -2,6 +2,7 @@ import { Readable } from 'stream';
 import { Router, type IRouter, type Request, type Response } from 'express';
 
 import {
+  ObjectAccessDeniedError,
   ObjectNotFoundError,
   ObjectStorageService,
 } from '../lib/objectStorage';
@@ -97,6 +98,47 @@ router.get(
     }
   },
 );
+
+/**
+ * GET /storage/signed-url?path=/objects/...
+ *
+ * Generate a short-lived presigned GET URL (1 hour) for a private object.
+ * The client uses this URL to download directly from the bucket — no server proxy needed.
+ * Requires auth so unauthenticated callers cannot mint read-capable URLs.
+ */
+router.get('/storage/signed-url', async (req: Request, res: Response) => {
+  if (!req.session?.userId) {
+    res.status(401).json({ error: 'Authentification requise' });
+    return;
+  }
+
+  const objectPath = req.query.path;
+  if (!objectPath || typeof objectPath !== 'string') {
+    res.status(400).json({ error: 'Missing or invalid path query parameter' });
+    return;
+  }
+
+  try {
+    const TTL_SEC = 3600; // 1 hour
+    const signedUrl = await objectStorageService.getObjectEntitySignedUrl(
+      objectPath,
+      { userId: req.session.userId as string, ttlSec: TTL_SEC },
+    );
+    const expiresAt = new Date(Date.now() + TTL_SEC * 1000).toISOString();
+    res.json({ signedUrl, expiresAt });
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: 'Object not found' });
+      return;
+    }
+    if (error instanceof ObjectAccessDeniedError) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    req.log.error({ err: error }, 'Error generating signed URL');
+    res.status(500).json({ error: 'Failed to generate signed URL' });
+  }
+});
 
 /**
  * GET /storage/objects/*

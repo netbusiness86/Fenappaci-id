@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
-import { Camera, ImageIcon, RotateCcw, X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { Camera, ImageIcon, RotateCcw, X, CheckCircle2, AlertTriangle, Loader2, ImageOff } from 'lucide-react';
+import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
 
 // ─── Utilitaire upload ────────────────────────────────────────────────────────
 export async function uploadPhoto(file: File): Promise<string> {
@@ -30,6 +31,51 @@ export interface PhotoCaptureProps {
   cameraFacing?: 'user' | 'environment';
   onUploaded: (objectPath: string) => void;
   onRemove: () => void;
+}
+
+/** Inner component that resolves the signed URL for an existing saved photo. */
+function SavedPhotoPreview({
+  objectPath,
+  label,
+  onReset,
+}: {
+  objectPath: string;
+  label: string;
+  onReset: () => void;
+}) {
+  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(objectPath);
+
+  return (
+    <div className="relative rounded-xl overflow-hidden border-2 border-[#2E7D32] bg-gray-50">
+      {isLoading ? (
+        <div className="w-full h-40 flex items-center justify-center bg-[#E8F5E9]">
+          <Loader2 className="w-8 h-8 text-[#2E7D32] animate-spin" />
+        </div>
+      ) : isError || !signedUrl ? (
+        <div className="w-full h-40 flex flex-col items-center justify-center bg-red-50 gap-2 px-4 text-center">
+          <ImageOff className="w-8 h-8 text-red-400" />
+          <p className="text-xs text-red-600 font-medium">Photo introuvable ou expirée</p>
+          <p className="text-[10px] text-red-400">La photo a peut-être été supprimée.</p>
+        </div>
+      ) : (
+        <img src={signedUrl} alt={label} className="w-full h-40 object-cover" onError={invalidate} />
+      )}
+      <div className="absolute top-2 right-2 flex gap-1.5">
+        {!isError && (
+          <div className="bg-[#2E7D32] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Envoyé
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={onReset}
+          className="bg-red-500 text-white rounded-full p-1"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function PhotoCapture({
@@ -78,34 +124,36 @@ export function PhotoCapture({
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</p>
 
       {(preview || objectPath) && !error ? (
-        <div className="relative rounded-xl overflow-hidden border-2 border-[#2E7D32] bg-gray-50">
+        <>
           {preview ? (
-            <img src={preview} alt={label} className="w-full h-40 object-cover" />
-          ) : (
-            <div className="w-full h-40 flex items-center justify-center bg-[#E8F5E9]">
-              <CheckCircle2 className="w-10 h-10 text-[#2E7D32]" />
+            /* Newly captured — use local data URL directly */
+            <div className="relative rounded-xl overflow-hidden border-2 border-[#2E7D32] bg-gray-50">
+              <img src={preview} alt={label} className="w-full h-40 object-cover" />
+              {uploading && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                </div>
+              )}
+              {!uploading && (
+                <div className="absolute top-2 right-2 flex gap-1.5">
+                  <div className="bg-[#2E7D32] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Envoyé
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="bg-red-500 text-white rounded-full p-1"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-          {uploading && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 text-white animate-spin" />
-            </div>
-          )}
-          {!uploading && (
-            <div className="absolute top-2 right-2 flex gap-1.5">
-              <div className="bg-[#2E7D32] text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Envoyé
-              </div>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="bg-red-500 text-white rounded-full p-1"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-        </div>
+          ) : objectPath ? (
+            /* Saved path — resolve via presigned URL so we can show the actual image */
+            <SavedPhotoPreview objectPath={objectPath} label={label} onReset={handleReset} />
+          ) : null}
+        </>
       ) : (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">

@@ -7,8 +7,11 @@ import {
   Filter,
   Eye,
   FileEdit,
-  UserSquare2
+  UserSquare2,
+  ImageOff,
+  Loader2,
 } from "lucide-react";
+import { useSignedPhotoUrl } from "@/hooks/use-signed-photo-url";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,6 +31,37 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+
+/** Small circular avatar backed by a presigned URL for the member list. */
+function MemberThumbnail({ photoPath }: { photoPath: string | null | undefined }) {
+  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(photoPath);
+  if (!photoPath)
+    return (
+      <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+        <UserSquare2 className="h-5 w-5" />
+      </div>
+    );
+  if (isLoading)
+    return (
+      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  if (isError || !signedUrl)
+    return (
+      <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center">
+        <ImageOff className="h-4 w-4 text-red-300" aria-label="Photo introuvable" />
+      </div>
+    );
+  return (
+    <img
+      src={signedUrl}
+      alt="Photo"
+      className="h-10 w-10 rounded-full object-cover border bg-muted"
+      onError={invalidate}
+    />
+  );
+}
 
 export default function MemberList() {
   const [search, setSearch] = useState("");
@@ -146,17 +180,7 @@ export default function MemberList() {
                   <TableCell className="font-mono text-xs font-medium">{farmer.numero_membre}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      {farmer.photo_path ? (
-                        <img 
-                          src={farmer.photo_path.startsWith('/objects/') ? `/api/storage${farmer.photo_path}` : `/api/storage/objects/${farmer.photo_path}`} 
-                          alt="Photo" 
-                          className="h-10 w-10 rounded-full object-cover border bg-muted"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                          <UserSquare2 className="h-5 w-5" />
-                        </div>
-                      )}
+                      <MemberThumbnail photoPath={farmer.photo_path} />
                       <div>
                         <div className="font-semibold text-foreground">{farmer.nom.toUpperCase()} {farmer.prenoms}</div>
                         {farmer.telephone && <div className="text-xs text-muted-foreground">{farmer.telephone}</div>}

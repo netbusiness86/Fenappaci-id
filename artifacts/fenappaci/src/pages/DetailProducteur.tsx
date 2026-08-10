@@ -12,14 +12,38 @@ import {
   CheckCircle2,
   Clock,
   Ban,
+  ImageOff,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
 
-// Build a URL to display an object-storage photo
-function photoUrl(path: string | null | undefined): string | null {
-  if (!path) return null;
-  if (path.startsWith('/objects/')) return `/api/storage${path}`;
-  return `/api/storage/objects/${path}`;
+/** Renders a photo from a signed object-storage URL with loading/error states. */
+function ObjectPhoto({
+  objectPath,
+  alt,
+  className,
+}: {
+  objectPath: string | null | undefined;
+  alt: string;
+  className?: string;
+}) {
+  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(objectPath);
+  if (!objectPath) return null;
+  if (isLoading)
+    return (
+      <div className={`flex items-center justify-center bg-gray-100 ${className}`}>
+        <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+      </div>
+    );
+  if (isError || !signedUrl)
+    return (
+      <div className={`flex flex-col items-center justify-center bg-red-50 gap-1 ${className}`}>
+        <ImageOff className="w-5 h-5 text-red-300" />
+        <span className="text-[10px] text-red-400">Introuvable</span>
+      </div>
+    );
+  return <img src={signedUrl} alt={alt} className={`object-cover ${className}`} onError={invalidate} />;
 }
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
@@ -96,9 +120,6 @@ export default function DetailProducteur() {
 
   const status = producteur.status as Status;
   const statusCfg = STATUS_CONFIG[status] ?? { label: status, color: 'bg-gray-400', icon: null };
-  const photo = photoUrl(producteur.photo_path);
-  const recto = photoUrl(producteur.piece_recto);
-  const verso = photoUrl(producteur.piece_verso);
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-gray-50">
@@ -127,8 +148,8 @@ export default function DetailProducteur() {
         {/* Photo + identité rapide */}
         <div className="bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-4">
           <div className="w-20 h-20 rounded-xl overflow-hidden border bg-gray-100 flex-none flex items-center justify-center">
-            {photo ? (
-              <img src={photo} alt={producteur.nom} className="w-full h-full object-cover" />
+            {producteur.photo_path ? (
+              <ObjectPhoto objectPath={producteur.photo_path} alt={producteur.nom} className="w-full h-full" />
             ) : (
               <User className="w-8 h-8 text-gray-300" />
             )}
@@ -195,29 +216,29 @@ export default function DetailProducteur() {
           <InfoRow label="Numéro de pièce" value={producteur.numero_piece} />
           <InfoRow label="Date de délivrance" value={producteur.date_delivrance} />
           <InfoRow label="Date d'expiration" value={producteur.date_expiration} />
-          {(recto || verso) && (
+          {(producteur.piece_recto || producteur.piece_verso) && (
             <div className="py-3 space-y-3">
               <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider">
                 Scan de la pièce
               </p>
               <div className="grid grid-cols-2 gap-3">
-                {recto && (
+                {producteur.piece_recto && (
                   <div className="space-y-1">
                     <p className="text-xs text-gray-500 font-medium">Recto</p>
-                    <img
-                      src={recto}
+                    <ObjectPhoto
+                      objectPath={producteur.piece_recto}
                       alt="Recto pièce d'identité"
-                      className="w-full rounded-xl border object-cover aspect-[3/2]"
+                      className="w-full rounded-xl border aspect-[3/2]"
                     />
                   </div>
                 )}
-                {verso && (
+                {producteur.piece_verso && (
                   <div className="space-y-1">
                     <p className="text-xs text-gray-500 font-medium">Verso</p>
-                    <img
-                      src={verso}
+                    <ObjectPhoto
+                      objectPath={producteur.piece_verso}
                       alt="Verso pièce d'identité"
-                      className="w-full rounded-xl border object-cover aspect-[3/2]"
+                      className="w-full rounded-xl border aspect-[3/2]"
                     />
                   </div>
                 )}

@@ -2,11 +2,48 @@ import { useState } from 'react';
 import { useListProducteurs } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Plus, User, MapPin, ChevronRight } from 'lucide-react';
+import { Search, Plus, User, MapPin, ChevronRight, ImageOff } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
+
+/** Resolves a producer's photo via a presigned URL and shows a placeholder on error. */
+function ProducerAvatar({
+  photoPath,
+  nom,
+}: {
+  photoPath: string | null | undefined;
+  nom: string;
+}) {
+  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(photoPath);
+
+  if (!photoPath) {
+    return <User className="w-6 h-6 text-muted-foreground" />;
+  }
+
+  if (isLoading) {
+    return <div className="w-6 h-6 rounded-full bg-gray-200 animate-pulse" />;
+  }
+
+  if (isError || !signedUrl) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full gap-0.5" title="Photo introuvable">
+        <ImageOff className="w-5 h-5 text-red-300" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={signedUrl}
+      alt={nom}
+      className="w-full h-full object-cover"
+      onError={invalidate}
+    />
+  );
+}
 
 export default function MyProducers() {
   const [, setLocation] = useLocation();
@@ -77,11 +114,7 @@ export default function MyProducers() {
               className="w-full text-left bg-white p-4 rounded-2xl border shadow-sm flex items-start gap-4 active:scale-[0.98] transition-transform"
             >
               <div className="w-12 h-12 bg-muted rounded-full flex-none flex items-center justify-center overflow-hidden">
-                {p.photo_path ? (
-                  <img src={p.photo_path} alt={p.nom} className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-6 h-6 text-muted-foreground" />
-                )}
+                <ProducerAvatar photoPath={p.photo_path} nom={p.nom} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-1">

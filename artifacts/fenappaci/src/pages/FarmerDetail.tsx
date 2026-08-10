@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
-import { Printer, Edit, Trash2, ArrowLeft, Tractor, MapPin, UserSquare2 } from "lucide-react";
+import { Printer, Edit, Trash2, ArrowLeft, Tractor, MapPin, UserSquare2, ImageOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,33 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useSignedPhotoUrl } from "@/hooks/use-signed-photo-url";
+
+/** Membership card photo backed by a presigned URL. */
+function FarmerCardPhoto({ objectPath }: { objectPath: string | null | undefined }) {
+  const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(objectPath);
+
+  if (!objectPath)
+    return (
+      <div className="w-full aspect-[3/4] rounded border bg-muted flex items-center justify-center text-muted-foreground">
+        <UserSquare2 className="h-8 w-8 opacity-50" />
+      </div>
+    );
+  if (isLoading)
+    return (
+      <div className="w-full aspect-[3/4] rounded border bg-muted flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  if (isError || !signedUrl)
+    return (
+      <div className="w-full aspect-[3/4] rounded border bg-red-50 flex flex-col items-center justify-center gap-1">
+        <ImageOff className="h-6 w-6 text-red-300" />
+        <span className="text-[8px] text-red-400 text-center leading-tight">Photo<br />introuvable</span>
+      </div>
+    );
+  return <img src={signedUrl} alt="Photo" className="w-full aspect-[3/4] object-cover rounded border bg-muted" onError={invalidate} />;
+}
 
 export default function FarmerDetail() {
   const params = useParams();
@@ -74,10 +101,6 @@ export default function FarmerDetail() {
       </div>
     );
   }
-
-  const photoUrl = farmer.photo_path 
-    ? (farmer.photo_path.startsWith('/objects/') ? `/api/storage${farmer.photo_path}` : `/api/storage/objects/${farmer.photo_path}`)
-    : null;
 
   return (
     <div className="p-6 lg:p-10 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -148,13 +171,7 @@ export default function FarmerDetail() {
             {/* Body */}
             <div className="flex-1 p-3 flex gap-3">
               <div className="shrink-0 w-[2.2cm]">
-                {photoUrl ? (
-                  <img src={photoUrl} alt="Photo" className="w-full aspect-[3/4] object-cover rounded border bg-muted" />
-                ) : (
-                  <div className="w-full aspect-[3/4] rounded border bg-muted flex items-center justify-center text-muted-foreground">
-                    <UserSquare2 className="h-8 w-8 opacity-50" />
-                  </div>
-                )}
+                <FarmerCardPhoto objectPath={farmer.photo_path} />
                 <div className="mt-1 text-[8px] text-center font-mono font-medium text-foreground bg-muted py-0.5 rounded">
                   {farmer.numero_membre.split('-').pop()}
                 </div>
