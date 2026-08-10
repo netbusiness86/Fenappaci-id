@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { sql, and, ilike, gte, isNotNull, gt } from "drizzle-orm";
+import { sql, and, isNotNull } from "drizzle-orm";
 import { db, producteursTable, farmsTable, plotsTable, productionsTable } from "@workspace/db";
 
 const router = Router();
@@ -14,16 +14,16 @@ router.get("/disponibilites", async (req: Request, res: Response): Promise<void>
   ] as any[];
 
   if (culture) {
-    conditions.push(ilike(productionsTable.culture, `%${culture}%`));
+    conditions.push(sql`unaccent(lower(${productionsTable.culture})) LIKE unaccent(lower(${'%' + culture + '%'}))`);
   }
   if (region) {
-    conditions.push(ilike(producteursTable.region, `%${region}%`));
+    conditions.push(sql`unaccent(lower(${producteursTable.region})) LIKE unaccent(lower(${'%' + region + '%'}))`);
   }
   if (departement) {
-    conditions.push(ilike(producteursTable.departement, `%${departement}%`));
+    conditions.push(sql`unaccent(lower(${producteursTable.departement})) LIKE unaccent(lower(${'%' + departement + '%'}))`);
   }
   if (cooperative) {
-    conditions.push(ilike(producteursTable.cooperative_nom_libre, `%${cooperative}%`));
+    conditions.push(sql`unaccent(lower(${producteursTable.cooperative_nom_libre})) LIKE unaccent(lower(${'%' + cooperative + '%'}))`);
   }
   if (quantite_min && !isNaN(Number(quantite_min))) {
     conditions.push(sql`${productionsTable.quantite_disponible}::numeric >= ${Number(quantite_min)}`);

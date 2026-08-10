@@ -13,4 +13,13 @@ if (!process.env.DATABASE_URL) {
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool, { schema });
 
+/**
+ * Ensure required PostgreSQL extensions are present.
+ * Must be called once at application startup before serving requests.
+ * Throws if the database cannot create the required extensions.
+ */
+export async function ensureExtensions(): Promise<void> {
+  await pool.query("CREATE EXTENSION IF NOT EXISTS unaccent");
+}
+
 export * from "./schema";
