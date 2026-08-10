@@ -328,7 +328,8 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
 
     if (sessionUser && !PRIVILEGED_ROLES.includes(sessionUser.role)) {
       // Ownership check: agent may only edit their own producteurs.
-      if (existing.agent_id !== sessionUserId) {
+      // agent_id === null means the record pre-dates ownership tracking → allow any agent.
+      if (existing.agent_id !== null && existing.agent_id !== sessionUserId) {
         res.status(403).json({ error: "Accès refusé : ce dossier appartient à un autre agent." });
         return;
       }
@@ -413,7 +414,8 @@ router.delete("/producteurs/:id", async (req: Request, res: Response): Promise<v
       .where(eq(usersTable.id, sessionUserId));
 
     if (sessionUser && !PRIVILEGED_ROLES.includes(sessionUser.role)) {
-      if (existing.agent_id !== sessionUserId) {
+      // agent_id === null means the record pre-dates ownership tracking → allow any agent.
+      if (existing.agent_id !== null && existing.agent_id !== sessionUserId) {
         res.status(403).json({ error: "Accès refusé : ce dossier appartient à un autre agent." });
         return;
       }
