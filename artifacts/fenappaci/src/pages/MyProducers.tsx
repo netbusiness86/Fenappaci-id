@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useListProducteurs } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Plus, User, MapPin } from 'lucide-react';
-import { Link } from 'wouter';
+import { Search, Plus, User, MapPin, Pencil } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
 
 export default function MyProducers() {
+  const [, setLocation] = useLocation();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -100,6 +101,16 @@ export default function MyProducers() {
                     {p.cultures}
                   </p>
                 )}
+                <div className="mt-3 pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setLocation(`/producteurs/${p.id}/modifier`)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-[#1B5E20] hover:text-[#2E7D32] transition-colors bg-[#E8F5E9] hover:bg-[#C8E6C9] px-3 py-1.5 rounded-full"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Modifier le dossier
+                  </button>
+                </div>
               </div>
             </div>
           ))

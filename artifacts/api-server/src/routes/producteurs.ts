@@ -223,6 +223,7 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
     "cooperative_id", "membre_cooperative", "cooperative_nom_libre",
     "cooperative_numero_libre", "cooperative_fonction", "cultures",
     "superficie_ha", "photo_path", "piece_recto", "piece_verso", "status",
+    "latitude", "longitude", "gps_precision", "gps_captured_at",
   ];
 
   for (const field of fields) {
