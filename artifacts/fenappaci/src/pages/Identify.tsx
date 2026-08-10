@@ -269,7 +269,7 @@ export default function Identify() {
         
         <p className="text-gray-500 font-semibold mb-2 uppercase text-sm tracking-widest">Numéro attribué</p>
         <div className="bg-[#F57C00] text-white px-8 py-5 rounded-xl text-3xl font-bold mb-8 w-full shadow-lg border-b-4 border-[#E65100]">
-          {createdProducteur?.id?.slice(0, 8).toUpperCase() || 'FEN-CI-2026-000009'}
+          {createdProducteur?.numero_membre || 'FEN-CI-2026-000001'}
         </div>
         
         <p className="text-lg font-medium text-gray-800 mb-12">
