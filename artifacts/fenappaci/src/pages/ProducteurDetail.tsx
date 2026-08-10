@@ -1,12 +1,24 @@
 import { useParams, useLocation } from 'wouter';
-import { useGetProducteur } from '@workspace/api-client-react';
+import { useGetProducteur, useDeleteProducteur } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  ArrowLeft, Pencil, User, Phone, MapPin, FileText,
-  Building2, Leaf, CheckCircle2, AlertTriangle, Loader2,
-  Navigation,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  ArrowLeft, Pencil, Trash2, User, Phone, MapPin, FileText,
+  Building2, Leaf, CheckCircle2, AlertTriangle,
+  Navigation, Loader2,
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -64,8 +76,10 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 export default function ProducteurDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const { data: p, isLoading, isError } = useGetProducteur(id!);
+  const deleteProducteur = useDeleteProducteur();
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -214,10 +228,55 @@ export default function ProducteurDetail() {
         )}
       </div>
 
-      {/* ── Bouton Modifier — fixé en bas ───────────────────────────────── */}
-      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t shadow-[0_-4px_10px_rgba(0,0,0,0.06)] z-20">
+      {/* ── Boutons fixés en bas ─────────────────────────────────────────── */}
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t shadow-[0_-4px_10px_rgba(0,0,0,0.06)] z-20 flex gap-3">
+        {/* Supprimer */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="h-14 px-4 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl flex items-center gap-2 shrink-0"
+            >
+              <Trash2 className="w-5 h-5" />
+              Supprimer
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer ce dossier ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Le dossier de <strong>{p?.nom} {p?.prenoms}</strong> ({p?.numero_membre}) sera
+                définitivement supprimé. Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => {
+                  deleteProducteur.mutate(
+                    { id: id! },
+                    {
+                      onSuccess: () => {
+                        toast({ title: 'Dossier supprimé', description: `${p?.nom} ${p?.prenoms} a été retiré du registre.` });
+                        setLocation('/mes-producteurs');
+                      },
+                      onError: () => {
+                        toast({ title: 'Erreur', description: 'Impossible de supprimer ce dossier.', variant: 'destructive' });
+                      },
+                    }
+                  );
+                }}
+              >
+                {deleteProducteur.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Suppression…</> : 'Oui, supprimer'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Modifier */}
         <Button
-          className="w-full h-14 text-base bg-[#F57C00] hover:bg-[#E65100] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2"
+          className="flex-1 h-14 text-base bg-[#F57C00] hover:bg-[#E65100] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2"
           onClick={() => setLocation(`/producteurs/${id}/modifier`)}
         >
           <Pencil className="w-5 h-5" />
