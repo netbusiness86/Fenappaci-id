@@ -1,134 +1,166 @@
-import { useGetFarmerStats, useGetRecentFarmers } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "wouter";
-import { Users, Sprout, MapPin, Building, ArrowRight } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { useGetDashboardStats, useListProducteurs } from '@workspace/api-client-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, UserCheck, CalendarPlus, Building2, MapPin, Sprout, ChevronRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Link } from 'wouter';
+import { getRoleBadgeColor } from '@/lib/utils';
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useGetFarmerStats();
-  const { data: recent, isLoading: recentLoading } = useGetRecentFarmers({ limit: 5 });
+  const { user } = useAuth();
+  const { data: stats, isLoading } = useGetDashboardStats();
+  const { data: recentProducteurs } = useListProducteurs();
+
+  if (isLoading || !stats) {
+    return (
+      <div className="p-4 space-y-4 animate-pulse">
+        <div className="h-16 bg-muted rounded-2xl"></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="h-28 bg-muted rounded-2xl"></div>
+          <div className="h-28 bg-muted rounded-2xl"></div>
+          <div className="h-28 bg-muted rounded-2xl"></div>
+          <div className="h-28 bg-muted rounded-2xl"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Get only top 5 recent (assuming the list returns newest first, or we just slice it)
+  const recent = recentProducteurs?.slice(0, 5) || [];
 
   return (
-    <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-foreground">Tableau de Bord</h1>
-        <p className="text-muted-foreground mt-1">Aperçu général de la base de données FENAPPACI.</p>
+    <div className="p-4 space-y-6 pb-20 animate-in fade-in duration-500">
+      <div className="flex flex-col space-y-1">
+        <h2 className="text-2xl font-display font-bold text-[#1B5E20]">
+          Bonjour, {user?.prenoms}
+        </h2>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Badge className={`${getRoleBadgeColor(user?.role || '')} border-none`}>
+            {user?.role.replace(/_/g, ' ')}
+          </Badge>
+          {user?.region && <span>• {user.region}</span>}
+        </div>
       </div>
 
-      {statsLoading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-xl" />
-          ))}
-        </div>
-      ) : stats ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-l-4 border-l-primary shadow-sm hover-elevate">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Membres</CardTitle>
-              <Users className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.total.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-amber-500 shadow-sm hover-elevate">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Superficie Totale</CardTitle>
-              <Sprout className="h-5 w-5 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">
-                {stats.superficie_totale?.toLocaleString() || 0} <span className="text-lg text-muted-foreground font-medium">ha</span>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-blue-500 shadow-sm hover-elevate">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Régions Couvertes</CardTitle>
-              <MapPin className="h-5 w-5 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.par_region.length}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-purple-500 shadow-sm hover-elevate">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Groupements</CardTitle>
-              <Building className="h-5 w-5 text-purple-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.par_groupement.length}</div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard 
+          icon={<Users className="w-5 h-5 text-[#2E7D32]" />} 
+          label="Total" 
+          value={stats.total_producteurs} 
+          bg="bg-[#E8F5E9]" 
+        />
+        <StatCard 
+          icon={<UserCheck className="w-5 h-5 text-[#F57C00]" />} 
+          label="Actifs" 
+          value={stats.producteurs_actifs} 
+          bg="bg-[#FFF3E0]" 
+        />
+        <StatCard 
+          icon={<CalendarPlus className="w-5 h-5 text-blue-600" />} 
+          label="Cette sem." 
+          value={stats.producteurs_cette_semaine} 
+          bg="bg-blue-50" 
+        />
+        <StatCard 
+          icon={<Building2 className="w-5 h-5 text-purple-600" />} 
+          label="Coopératives" 
+          value={stats.cooperatives} 
+          bg="bg-purple-50" 
+        />
+      </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Inscriptions Récentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-              </div>
-            ) : recent && recent.length > 0 ? (
-              <div className="space-y-4">
-                {recent.map(farmer => (
-                  <Link key={farmer.id} href={`/membres/${farmer.id}`} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold font-display">
-                        {farmer.nom.charAt(0)}{farmer.prenoms.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-medium text-foreground">{farmer.nom} {farmer.prenoms}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{farmer.numero_membre}</div>
-                      </div>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </Link>
-                ))}
-                <Button variant="outline" className="w-full mt-2" asChild>
-                  <Link href="/membres">Voir tous les membres</Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                Aucun membre récent.
-              </div>
-            )}
+      {stats.superficie_totale != null && (
+        <Card className="bg-[#1B5E20] text-white border-none shadow-md">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-white/80 text-sm font-medium">Superficie Totale</p>
+              <p className="text-2xl font-bold font-display">{stats.superficie_totale} ha</p>
+            </div>
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <Sprout className="w-6 h-6 text-white" />
+            </div>
           </CardContent>
         </Card>
+      )}
 
-        {stats && (
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Répartition par Culture</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {stats.par_culture.slice(0, 5).map((item, i) => (
-                  <div key={i}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium">{item.label}</span>
-                      <span className="text-muted-foreground">{item.count} membres</span>
-                    </div>
-                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary rounded-full" 
-                        style={{ width: `${(item.count / stats.total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+      <div className="space-y-4">
+        <h3 className="font-semibold text-lg flex items-center gap-2">
+          <MapPin className="w-5 h-5 text-[#F57C00]" />
+          Top 5 Régions
+        </h3>
+        <div className="space-y-2">
+          {stats.par_region.slice(0, 5).map((r, i) => (
+            <div key={i} className="flex items-center justify-between bg-white p-3 rounded-xl border shadow-sm">
+              <span className="font-medium text-sm">{r.label}</span>
+              <span className="font-bold text-[#2E7D32]">{r.count}</span>
+            </div>
+          ))}
+          {stats.par_region.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">Aucune donnée</p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="font-semibold text-lg flex items-center gap-2">
+          <Sprout className="w-5 h-5 text-[#2E7D32]" />
+          Principales Cultures
+        </h3>
+        <div className="space-y-2">
+          {stats.par_culture.slice(0, 5).map((c, i) => (
+            <div key={i} className="flex items-center justify-between bg-white p-3 rounded-xl border shadow-sm">
+              <span className="font-medium text-sm">{c.label}</span>
+              <span className="font-bold text-[#F57C00]">{c.count}</span>
+            </div>
+          ))}
+          {stats.par_culture.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">Aucune donnée</p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-lg">Récents</h3>
+          <Link href="/mes-producteurs" className="text-sm text-[#F57C00] font-medium flex items-center">
+            Voir tout <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+        <div className="space-y-3">
+          {recent.map(p => (
+            <Link key={p.id} href={`/mes-producteurs`}>
+              <div className="bg-white p-3 rounded-xl border shadow-sm flex items-center justify-between active:scale-95 transition-transform touch-manipulation">
+                <div>
+                  <p className="font-bold text-sm">{p.nom} {p.prenoms}</p>
+                  <p className="text-xs text-muted-foreground">{p.village} • {p.cultures}</p>
+                </div>
+                <Badge className={p.status === 'ACTIF' ? 'bg-[#4CAF50]' : 'bg-gray-400'}>
+                  {p.status}
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </Link>
+          ))}
+          {recent.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">Aucun producteur</p>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function StatCard({ icon, label, value, bg }: { icon: React.ReactNode, label: string, value: number, bg: string }) {
+  return (
+    <Card className="border-none shadow-sm overflow-hidden">
+      <CardContent className={`p-4 ${bg} h-full flex flex-col justify-between`}>
+        <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center mb-2">
+          {icon}
+        </div>
+        <div>
+          <p className="text-2xl font-bold font-display leading-none mb-1">{value}</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

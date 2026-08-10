@@ -1,0 +1,4 @@
+- [Zod v3 compatibility](zod-v3-compat.md) — use `type: number` not `type: integer` in OpenAPI; no `zod.email()`, `format: email` must be removed from spec
+- [Session auth pattern](session-auth.md) — express-session used for auth; custom-fetch.ts needs `credentials: 'include'`; SESSION_SECRET secret already provisioned
+- [Storage route zod imports](storage-route.md) — storage.ts must not import from @workspace/api-zod (those schemas may not exist); use inline plain-JS validation instead
+- [DB push interactive conflict](db-push.md) — drizzle-kit push prompts interactively when tables already exist; use executeSql directly to create tables to avoid this

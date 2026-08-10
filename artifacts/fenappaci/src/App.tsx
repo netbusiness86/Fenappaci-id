@@ -2,34 +2,66 @@ import { type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import NotFound from '@/pages/not-found';
 import {
   Route,
   Switch,
   useLocation,
   Router as WouterRouter,
+  Redirect,
 } from 'wouter';
 
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Shell } from '@/components/layout/Shell';
+
+import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
-import MemberList from '@/pages/MemberList';
-import NewMember from '@/pages/NewMember';
-import EditMember from '@/pages/EditMember';
-import FarmerDetail from '@/pages/FarmerDetail';
+import MyProducers from '@/pages/MyProducers';
+import Identify from '@/pages/Identify';
+import SearchPage from '@/pages/Search';
+import Profile from '@/pages/Profile';
+import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
+
+// Redirect root to Dashboard or Login based on auth
+function RootRedirect() {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) return null;
+  
+  if (isAuthenticated) {
+    return <Redirect to="/tableau-de-bord" />;
+  } else {
+    return <Redirect to="/login" />;
+  }
+}
 
 function Router() {
   return (
     <Shell>
       <RoutedErrorBoundary>
         <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/membres" component={MemberList} />
-          <Route path="/membres/nouveau" component={NewMember} />
-          <Route path="/membres/:id/modifier" component={EditMember} />
-          <Route path="/membres/:id" component={FarmerDetail} />
+          <Route path="/" component={RootRedirect} />
+          <Route path="/login" component={Login} />
+          
+          {/* Protected Routes */}
+          <Route path="/tableau-de-bord">
+            <ProtectedRoute><Dashboard /></ProtectedRoute>
+          </Route>
+          <Route path="/mes-producteurs">
+            <ProtectedRoute><MyProducers /></ProtectedRoute>
+          </Route>
+          <Route path="/identifier">
+            <ProtectedRoute><Identify /></ProtectedRoute>
+          </Route>
+          <Route path="/rechercher">
+            <ProtectedRoute><SearchPage /></ProtectedRoute>
+          </Route>
+          <Route path="/profil">
+            <ProtectedRoute><Profile /></ProtectedRoute>
+          </Route>
+
           <Route component={NotFound} />
         </Switch>
       </RoutedErrorBoundary>
@@ -45,12 +77,12 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+        <AuthProvider>
           <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+          <Toaster />
+        </AuthProvider>
+      </WouterRouter>
     </QueryClientProvider>
   );
 }

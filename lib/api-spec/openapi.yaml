@@ -2,18 +2,22 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification for FENAPPACI member identification
+  version: 0.2.0
+  description: API FENAPPACI — Identification des Producteurs Agricoles de Côte d'Ivoire
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
-  - name: farmers
-    description: Farmer (paysan) operations
-  - name: storage
-    description: Object storage operations
+  - name: auth
+    description: Authentication
+  - name: producteurs
+    description: Producteur operations
+  - name: cooperatives
+    description: Cooperative operations
+  - name: stats
+    description: Statistics
 
 paths:
   /healthz:
@@ -21,7 +25,6 @@ paths:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -30,22 +33,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  /farmers:
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+
+  /auth/me:
     get:
-      operationId: listFarmers
-      tags: [farmers]
-      summary: List all farmers
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutResult"
+
+  /producteurs:
+    get:
+      operationId: listProducteurs
+      tags: [producteurs]
+      summary: List producteurs
       parameters:
         - name: search
-          in: query
-          schema:
-            type: string
-          description: Search by name, CIN, or numero_membre
-        - name: groupement
-          in: query
-          schema:
-            type: string
-        - name: culture
           in: query
           schema:
             type: string
@@ -53,187 +96,187 @@ paths:
           in: query
           schema:
             type: string
-        - name: sexe
+        - name: cooperative_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: agent_id
           in: query
           schema:
             type: string
       responses:
         "200":
-          description: List of farmers
+          description: List of producteurs
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Farmer"
+                  $ref: "#/components/schemas/Producteur"
     post:
-      operationId: createFarmer
-      tags: [farmers]
-      summary: Register a new farmer
+      operationId: createProducteur
+      tags: [producteurs]
+      summary: Create a producteur
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/FarmerInput"
+              $ref: "#/components/schemas/ProducteurInput"
       responses:
         "201":
-          description: Farmer created
+          description: Producteur created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Farmer"
+                $ref: "#/components/schemas/Producteur"
         "400":
           description: Validation error
 
-  /farmers/stats:
+  /producteurs/{id}:
     get:
-      operationId: getFarmerStats
-      tags: [farmers]
-      summary: Get dashboard statistics
-      responses:
-        "200":
-          description: Aggregated statistics
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FarmerStats"
-
-  /farmers/recent:
-    get:
-      operationId: getRecentFarmers
-      tags: [farmers]
-      summary: Get recently registered farmers
-      parameters:
-        - name: limit
-          in: query
-          schema:
-            type: number
-            default: 10
-      responses:
-        "200":
-          description: Recent farmers
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Farmer"
-
-  /farmers/{id}:
-    get:
-      operationId: getFarmer
-      tags: [farmers]
-      summary: Get a farmer by ID
+      operationId: getProducteur
+      tags: [producteurs]
+      summary: Get a producteur by ID
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: number
+            type: string
       responses:
         "200":
-          description: Farmer details
+          description: Producteur details
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Farmer"
+                $ref: "#/components/schemas/Producteur"
         "404":
           description: Not found
     patch:
-      operationId: updateFarmer
-      tags: [farmers]
-      summary: Update a farmer
+      operationId: updateProducteur
+      tags: [producteurs]
+      summary: Update a producteur
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: number
+            type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/FarmerUpdate"
+              $ref: "#/components/schemas/ProducteurUpdate"
       responses:
         "200":
-          description: Updated farmer
+          description: Updated producteur
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Farmer"
+                $ref: "#/components/schemas/Producteur"
         "404":
           description: Not found
     delete:
-      operationId: deleteFarmer
-      tags: [farmers]
-      summary: Delete a farmer
+      operationId: deleteProducteur
+      tags: [producteurs]
+      summary: Delete a producteur
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: number
+            type: string
       responses:
         "204":
           description: Deleted
 
-  /storage/uploads/request-url:
-    post:
-      operationId: requestUploadUrl
-      tags: [storage]
-      summary: Request a presigned upload URL
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UploadUrlRequest"
+  /cooperatives:
+    get:
+      operationId: listCooperatives
+      tags: [cooperatives]
+      summary: List cooperatives
       responses:
         "200":
-          description: Presigned upload URL
+          description: List of cooperatives
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UploadUrlResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Cooperative"
 
-  /storage/objects/{objectPath}:
+  /stats/dashboard:
     get:
-      operationId: getObject
-      tags: [storage]
-      summary: Serve a stored object
-      parameters:
-        - name: objectPath
-          in: path
-          required: true
-          schema:
-            type: string
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Get dashboard statistics
       responses:
         "200":
-          description: Object file
-        "404":
-          description: Not found
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
 
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
-    Farmer:
+    LoginInput:
       type: object
-      required:
-        - id
-        - numero_membre
-        - nom
-        - prenoms
-        - village
-        - created_at
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    LogoutResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    AuthUser:
+      type: object
+      required: [id, nom, prenoms, email, role]
+      properties:
+        id:
+          type: number
+        nom:
+          type: string
+        prenoms:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        region:
+          type: ["string", "null"]
+        departement:
+          type: ["string", "null"]
+        sous_prefecture:
+          type: ["string", "null"]
+        avatar_path:
+          type: ["string", "null"]
+        created_at:
+          type: string
+
+    Producteur:
+      type: object
+      required: [id, numero_membre, nom, prenoms, village, status, created_at]
       properties:
         id:
           type: number
@@ -257,9 +300,9 @@ components:
           type: ["string", "null"]
         region:
           type: ["string", "null"]
-        groupement:
-          type: ["string", "null"]
-        cooperative:
+        cooperative_id:
+          type: ["number", "null"]
+        cooperative_nom:
           type: ["string", "null"]
         cultures:
           type: ["string", "null"]
@@ -267,24 +310,23 @@ components:
           type: ["number", "null"]
         photo_path:
           type: ["string", "null"]
+        status:
+          type: string
+        agent_id:
+          type: ["number", "null"]
+        agent_nom:
+          type: ["string", "null"]
         created_at:
           type: string
-        updated_at:
-          type: string
 
-    FarmerInput:
+    ProducteurInput:
       type: object
-      required:
-        - nom
-        - prenoms
-        - village
+      required: [nom, prenoms, village]
       properties:
         nom:
           type: string
-          minLength: 1
         prenoms:
           type: string
-          minLength: 1
         date_naissance:
           type: string
         sexe:
@@ -299,10 +341,8 @@ components:
           type: string
         region:
           type: string
-        groupement:
-          type: string
-        cooperative:
-          type: string
+        cooperative_id:
+          type: number
         cultures:
           type: string
         superficie_ha:
@@ -310,7 +350,7 @@ components:
         photo_path:
           type: string
 
-    FarmerUpdate:
+    ProducteurUpdate:
       type: object
       properties:
         nom:
@@ -331,30 +371,47 @@ components:
           type: string
         region:
           type: string
-        groupement:
-          type: string
-        cooperative:
-          type: string
+        cooperative_id:
+          type: number
         cultures:
           type: string
         superficie_ha:
           type: number
         photo_path:
           type: string
+        status:
+          type: string
 
-    FarmerStats:
+    Cooperative:
       type: object
-      required:
-        - total
-        - par_sexe
-        - par_culture
-        - par_region
-        - par_groupement
-        - superficie_totale
+      required: [id, nom, created_at]
       properties:
-        total:
+        id:
           type: number
-        par_sexe:
+        nom:
+          type: string
+        region:
+          type: ["string", "null"]
+        departement:
+          type: ["string", "null"]
+        nombre_membres:
+          type: ["number", "null"]
+        created_at:
+          type: string
+
+    DashboardStats:
+      type: object
+      required: [total_producteurs, producteurs_actifs, producteurs_cette_semaine, cooperatives, par_region, par_culture, par_sexe]
+      properties:
+        total_producteurs:
+          type: number
+        producteurs_actifs:
+          type: number
+        producteurs_cette_semaine:
+          type: number
+        cooperatives:
+          type: number
+        par_region:
           type: array
           items:
             $ref: "#/components/schemas/CountGroup"
@@ -362,11 +419,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CountGroup"
-        par_region:
-          type: array
-          items:
-            $ref: "#/components/schemas/CountGroup"
-        par_groupement:
+        par_sexe:
           type: array
           items:
             $ref: "#/components/schemas/CountGroup"
@@ -375,36 +428,9 @@ components:
 
     CountGroup:
       type: object
-      required:
-        - label
-        - count
+      required: [label, count]
       properties:
         label:
           type: string
         count:
           type: number
-
-    UploadUrlRequest:
-      type: object
-      required:
-        - name
-        - size
-        - contentType
-      properties:
-        name:
-          type: string
-        size:
-          type: number
-        contentType:
-          type: string
-
-    UploadUrlResponse:
-      type: object
-      required:
-        - uploadURL
-        - objectPath
-      properties:
-        uploadURL:
-          type: string
-        objectPath:
-          type: string
