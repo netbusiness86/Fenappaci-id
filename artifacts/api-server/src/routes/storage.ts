@@ -107,17 +107,19 @@ router.get(
  */
 router.get('/storage/objects/*path', async (req: Request, res: Response) => {
   try {
+    // Require session authentication before any file lookup — objects contain
+    // sensitive PII (identity scans, photos) and we must not leak existence info
+    // to unauthenticated callers via a 404 vs 401 difference.
+    if (!req.session?.userId) {
+      res.status(401).json({ error: "Authentification requise" });
+      return;
+    }
+
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
     const objectPath = `/objects/${wildcardPath}`;
     const objectFile =
       await objectStorageService.getObjectEntityFile(objectPath);
-
-    // Require session authentication — objects contain sensitive PII (identity scans, photos)
-    if (!req.session?.userId) {
-      res.status(401).json({ error: "Authentification requise" });
-      return;
-    }
 
     const response = await objectStorageService.downloadObject(objectFile);
 
