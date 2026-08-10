@@ -3,13 +3,18 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for FENAPPACI member identification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: farmers
+    description: Farmer (paysan) operations
+  - name: storage
+    description: Object storage operations
+
 paths:
   /healthz:
     get:
@@ -24,6 +29,192 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /farmers:
+    get:
+      operationId: listFarmers
+      tags: [farmers]
+      summary: List all farmers
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by name, CIN, or numero_membre
+        - name: groupement
+          in: query
+          schema:
+            type: string
+        - name: culture
+          in: query
+          schema:
+            type: string
+        - name: region
+          in: query
+          schema:
+            type: string
+        - name: sexe
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of farmers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Farmer"
+    post:
+      operationId: createFarmer
+      tags: [farmers]
+      summary: Register a new farmer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmerInput"
+      responses:
+        "201":
+          description: Farmer created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Farmer"
+        "400":
+          description: Validation error
+
+  /farmers/stats:
+    get:
+      operationId: getFarmerStats
+      tags: [farmers]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Aggregated statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FarmerStats"
+
+  /farmers/recent:
+    get:
+      operationId: getRecentFarmers
+      tags: [farmers]
+      summary: Get recently registered farmers
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 10
+      responses:
+        "200":
+          description: Recent farmers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Farmer"
+
+  /farmers/{id}:
+    get:
+      operationId: getFarmer
+      tags: [farmers]
+      summary: Get a farmer by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Farmer details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Farmer"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateFarmer
+      tags: [farmers]
+      summary: Update a farmer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FarmerUpdate"
+      responses:
+        "200":
+          description: Updated farmer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Farmer"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteFarmer
+      tags: [farmers]
+      summary: Delete a farmer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+
+  /storage/objects/{objectPath}:
+    get:
+      operationId: getObject
+      tags: [storage]
+      summary: Serve a stored object
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object file
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +225,186 @@ components:
       required:
         - status
 
+    Farmer:
+      type: object
+      required:
+        - id
+        - numero_membre
+        - nom
+        - prenoms
+        - village
+        - created_at
+      properties:
+        id:
+          type: number
+        numero_membre:
+          type: string
+        nom:
+          type: string
+        prenoms:
+          type: string
+        date_naissance:
+          type: ["string", "null"]
+        sexe:
+          type: ["string", "null"]
+        cin:
+          type: ["string", "null"]
+        telephone:
+          type: ["string", "null"]
+        village:
+          type: string
+        sous_prefecture:
+          type: ["string", "null"]
+        region:
+          type: ["string", "null"]
+        groupement:
+          type: ["string", "null"]
+        cooperative:
+          type: ["string", "null"]
+        cultures:
+          type: ["string", "null"]
+        superficie_ha:
+          type: ["number", "null"]
+        photo_path:
+          type: ["string", "null"]
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    FarmerInput:
+      type: object
+      required:
+        - nom
+        - prenoms
+        - village
+      properties:
+        nom:
+          type: string
+          minLength: 1
+        prenoms:
+          type: string
+          minLength: 1
+        date_naissance:
+          type: string
+        sexe:
+          type: string
+        cin:
+          type: string
+        telephone:
+          type: string
+        village:
+          type: string
+        sous_prefecture:
+          type: string
+        region:
+          type: string
+        groupement:
+          type: string
+        cooperative:
+          type: string
+        cultures:
+          type: string
+        superficie_ha:
+          type: number
+        photo_path:
+          type: string
+
+    FarmerUpdate:
+      type: object
+      properties:
+        nom:
+          type: string
+        prenoms:
+          type: string
+        date_naissance:
+          type: string
+        sexe:
+          type: string
+        cin:
+          type: string
+        telephone:
+          type: string
+        village:
+          type: string
+        sous_prefecture:
+          type: string
+        region:
+          type: string
+        groupement:
+          type: string
+        cooperative:
+          type: string
+        cultures:
+          type: string
+        superficie_ha:
+          type: number
+        photo_path:
+          type: string
+
+    FarmerStats:
+      type: object
+      required:
+        - total
+        - par_sexe
+        - par_culture
+        - par_region
+        - par_groupement
+        - superficie_totale
+      properties:
+        total:
+          type: number
+        par_sexe:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountGroup"
+        par_culture:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountGroup"
+        par_region:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountGroup"
+        par_groupement:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountGroup"
+        superficie_totale:
+          type: ["number", "null"]
+
+    CountGroup:
+      type: object
+      required:
+        - label
+        - count
+      properties:
+        label:
+          type: string
+        count:
+          type: number
+
+    UploadUrlRequest:
+      type: object
+      required:
+        - name
+        - size
+        - contentType
+      properties:
+        name:
+          type: string
+        size:
+          type: number
+        contentType:
+          type: string
+
+    UploadUrlResponse:
+      type: object
+      required:
+        - uploadURL
+        - objectPath
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string

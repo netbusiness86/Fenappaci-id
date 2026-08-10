@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "FENAPPACI - Identification des Membres"
+description = "Application web d'identification et de gestion des membres de la FENAPPACI (Fédération Nationale des Producteurs et Promoteurs Agricoles de Côte d'Ivoire). Permet d'enregistrer les paysans avec leurs informations personnelles, de générer des cartes membres avec QR code, et de consulter les statistiques."
+version = "1.0.0"
+id = "artifacts/fenappaci"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26251
+
+[services.development]
+run = "pnpm --filter @workspace/fenappaci run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fenappaci", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/fenappaci/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26251"
+BASE_PATH = "/"

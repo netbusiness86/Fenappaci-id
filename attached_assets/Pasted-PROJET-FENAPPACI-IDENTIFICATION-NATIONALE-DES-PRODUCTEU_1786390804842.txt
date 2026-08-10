@@ -1,0 +1,489 @@
+PROJET : FENAPPACI — IDENTIFICATION NATIONALE DES PRODUCTEURS AGRICOLES
+
+Tu vas créer une application web/PWA professionnelle appelée FENAPPACI, destinée à l'identification et au suivi des producteurs agricoles en Côte d'Ivoire.
+
+1. OBJECTIF DU PROJET
+
+L'application doit permettre aux agents de terrain de la FENAPPACI d'identifier rapidement les paysans/producteurs agricoles, d'enregistrer leurs informations, leurs exploitations, leurs parcelles et leurs productions.
+
+L'application doit être conçue dès le départ pour pouvoir évoluer ultérieurement vers :
+
+- gestion des producteurs ;
+- gestion des coopératives ;
+- géolocalisation des exploitations ;
+- production agricole ;
+- collecte ;
+- commercialisation ;
+- contrats ;
+- financement ;
+- intrants ;
+- statistiques nationales ;
+- carte interactive des producteurs ;
+- carte numérique FENAPPACI avec QR Code.
+
+NE DÉVELOPPE PAS ENCORE ces modules avancés. Prépare seulement une architecture permettant de les ajouter proprement plus tard.
+
+---
+
+2. TYPE D'APPLICATION
+
+Créer une PWA responsive, prioritairement optimisée pour les téléphones Android utilisés par les agents de terrain.
+
+Elle doit également fonctionner correctement sur :
+
+- smartphones ;
+- tablettes ;
+- ordinateurs.
+
+Prévoir dès le départ une architecture compatible avec le fonctionnement hors connexion, même si la synchronisation offline complète sera développée dans une étape ultérieure.
+
+---
+
+3. IDENTITÉ VISUELLE
+
+Nom :
+
+FENAPPACI
+
+Nom complet :
+
+Fédération Nationale des Producteurs et Promoteurs Agricoles de Côte d'Ivoire
+
+Slogan :
+
+« La recherche de la qualité, notre affaire. »
+
+Utiliser une identité visuelle professionnelle inspirée des couleurs officielles de la FENAPPACI :
+
+- vert ;
+- orange ;
+- blanc.
+
+L'interface doit être moderne, claire, professionnelle et particulièrement facile à utiliser sur un téléphone.
+
+Ne pas surcharger les écrans.
+
+---
+
+4. ARCHITECTURE TECHNIQUE
+
+Utiliser une architecture moderne et maintenable.
+
+Prévoir :
+
+Frontend :
+
+- React
+- TypeScript
+- interface responsive/PWA
+
+Backend :
+
+- Node.js
+- API REST structurée
+
+Base de données :
+
+- PostgreSQL
+- ORM moderne, de préférence Prisma
+
+Authentification :
+
+- système sécurisé de connexion
+- utilisateurs avec rôles
+
+Stockage :
+
+- architecture permettant de stocker ultérieurement les photos et documents
+
+Cartographie :
+
+- architecture compatible avec OpenStreetMap
+
+QR Code :
+
+- architecture permettant de générer un QR Code unique pour chaque producteur
+
+---
+
+5. STRUCTURE DES UTILISATEURS
+
+Préparer le système pour plusieurs rôles :
+
+ADMINISTRATEUR NATIONAL
+
+Accès complet à la plateforme.
+
+DIRECTION
+
+Accès aux producteurs, statistiques et informations nationales.
+
+COORDINATION RÉGIONALE
+
+Accès aux producteurs de sa zone.
+
+DÉLÉGUÉ DÉPARTEMENTAL
+
+Accès aux producteurs de son département.
+
+DÉLÉGUÉ DE SOUS-PRÉFECTURE
+
+Accès aux producteurs de sa zone.
+
+AGENT D'IDENTIFICATION
+
+Création et consultation des fiches producteurs qu'il a enregistrées.
+
+PRODUCTEUR
+
+Accès futur à son propre profil.
+
+Ne pas développer toutes les permissions complexes maintenant, mais préparer correctement la structure des rôles.
+
+---
+
+6. PREMIERS ÉCRANS À CRÉER
+
+Créer les écrans suivants :
+
+Écran 1 — Connexion
+
+Logo FENAPPACI
+
+Champs :
+
+- Identifiant / téléphone
+- Mot de passe
+
+Bouton :
+
+SE CONNECTER
+
+---
+
+Écran 2 — Tableau de bord
+
+Afficher des statistiques fictives pour le moment afin de visualiser l'interface :
+
+Producteurs identifiés
+
+Coopératives
+
+Exploitations
+
+Production enregistrée
+
+Créer également un bouton principal très visible :
+
++ IDENTIFIER UN PRODUCTEUR
+
+Et des raccourcis :
+
+- Mes producteurs
+- Rechercher
+- Carte
+- Mon profil
+
+Les données réelles seront connectées ultérieurement à PostgreSQL.
+
+---
+
+7. ÉCRAN « NOUVEAU PRODUCTEUR »
+
+Créer une interface par étapes.
+
+Étape 1 :
+IDENTITÉ
+
+Étape 2 :
+PIÈCE D'IDENTITÉ
+
+Étape 3 :
+LOCALISATION
+
+Étape 4 :
+COOPÉRATIVE
+
+Étape 5 :
+EXPLOITATION
+
+Étape 6 :
+PARCELLES
+
+Étape 7 :
+PRODUCTION
+
+Étape 8 :
+BESOINS
+
+Étape 9 :
+PHOTOS — FACULTATIF
+
+Étape 10 :
+SIGNATURE
+
+Étape 11 :
+ENREGISTREMENT
+
+Afficher clairement la progression :
+
+Étape X / 11
+
+avec :
+
+PRÉCÉDENT
+
+et
+
+CONTINUER
+
+---
+
+8. RÈGLE IMPORTANTE SUR L'ENREGISTREMENT
+
+Il n'existe PAS de système de validation manuelle dans cette première version.
+
+Lorsque toutes les informations obligatoires sont complètes et que l'agent termine l'enregistrement :
+
+Le système doit automatiquement créer le producteur.
+
+Afficher :
+
+✅ PRODUCTEUR FENAPPACI ENREGISTRÉ
+
+Générer automatiquement :
+
+- numéro unique FENAPPACI ;
+- date et heure ;
+- agent ayant enregistré le producteur ;
+- QR Code unique.
+
+Exemple :
+
+FEN-CI-2026-000001
+
+Le numéro doit être généré automatiquement par le système et ne doit jamais être saisi manuellement par l'agent.
+
+---
+
+9. PHOTOS
+
+Les photos supplémentaires de terrain sont FACULTATIVES.
+
+Ne jamais empêcher l'enregistrement d'un producteur parce qu'une photo d'exploitation, de parcelle ou de stock n'a pas été ajoutée.
+
+Préparer simplement la structure permettant de les ajouter ultérieurement.
+
+---
+
+10. SIGNATURE
+
+Préparer un champ de signature électronique permettant au producteur de signer directement sur l'écran du téléphone.
+
+Prévoir également la signature de l'agent.
+
+---
+
+11. BASE DE DONNÉES
+
+Créer une première structure PostgreSQL propre avec au minimum les entités suivantes :
+
+User
+
+- id
+- name
+- phone
+- email
+- passwordHash
+- role
+- agency
+- region
+- department
+- subPrefecture
+- createdAt
+- updatedAt
+
+Producer
+
+- id
+- fenappaciNumber
+- firstName
+- lastName
+- gender
+- birthDate
+- birthPlace
+- nationality
+- maritalStatus
+- phone
+- secondaryPhone
+- address
+- photoUrl
+- idType
+- idNumber
+- idIssueDate
+- idExpiryDate
+- idFrontUrl
+- idBackUrl
+- district
+- region
+- department
+- subPrefecture
+- commune
+- village
+- latitude
+- longitude
+- cooperativeId
+- registeredBy
+- createdAt
+- updatedAt
+
+Cooperative
+
+- id
+- name
+- identificationNumber
+- location
+- createdAt
+- updatedAt
+
+Farm
+
+- id
+- producerId
+- name
+- location
+- latitude
+- longitude
+- totalArea
+- landStatus
+- creationYear
+- createdAt
+- updatedAt
+
+Plot
+
+- id
+- farmId
+- reference
+- crop
+- area
+- latitude
+- longitude
+- plantingYear
+- plantationAge
+- condition
+- estimatedProduction
+- availableProduction
+- unit
+- createdAt
+- updatedAt
+
+Production
+
+- id
+- plotId
+- crop
+- estimatedAnnualProduction
+- currentCampaignProduction
+- availableStock
+- quantityAvailableForSale
+- deliveryCapacity
+- availabilityPeriod
+- createdAt
+- updatedAt
+
+ProducerNeed
+
+- id
+- producerId
+- financingNeeded
+- financingAmount
+- financingPurpose
+- seedNeeded
+- fertilizerNeeded
+- phytosanitaryNeeded
+- equipmentNeeded
+- trainingNeeded
+- createdAt
+- updatedAt
+
+Photo
+
+- id
+- producerId
+- farmId
+- plotId
+- type
+- url
+- createdAt
+
+Signature
+
+- id
+- producerId
+- producerSignature
+- agentSignature
+- signedAt
+
+---
+
+12. SÉCURITÉ
+
+Prévoir dès le départ :
+
+- mots de passe hashés ;
+- authentification sécurisée ;
+- contrôle d'accès par rôle ;
+- protection des API ;
+- validation des données côté serveur ;
+- journalisation des opérations importantes ;
+- aucune donnée sensible dans le frontend ;
+- variables secrètes dans les variables d'environnement.
+
+Les documents d'identité doivent être considérés comme des données sensibles.
+
+---
+
+13. IMPORTANT — NE PAS FAIRE MAINTENANT
+
+Ne développe pas encore :
+
+- paiement ;
+- financement ;
+- contrats ;
+- collecte ;
+- commercialisation ;
+- exportation ;
+- carte nationale avancée ;
+- notifications SMS ;
+- application mobile native ;
+- intelligence artificielle ;
+- système complexe de synchronisation offline.
+
+Nous les ajouterons progressivement.
+
+---
+
+14. LIVRABLE DE CETTE PREMIÈRE ÉTAPE
+
+À la fin de cette étape, je veux obtenir :
+
+1. Une application FENAPPACI fonctionnelle.
+2. Une page de connexion.
+3. Un tableau de bord.
+4. Une navigation professionnelle.
+5. La structure PostgreSQL.
+6. Le système d'utilisateurs et de rôles de base.
+7. L'écran « Nouveau producteur » avec les 11 étapes.
+8. Une architecture propre permettant de poursuivre le développement.
+
+IMPORTANT :
+
+Ne crée pas de données réelles de producteurs.
+
+Utilise uniquement quelques données de démonstration clairement identifiées comme « DEMO ».
+
+À la fin, affiche clairement :
+FENAPPACI — Infrastructure initiale prête pour le module d'identification.
+
+Ne modifie pas le cahier des charges sans me prévenir.
