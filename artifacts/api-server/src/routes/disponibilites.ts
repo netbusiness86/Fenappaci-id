@@ -4,9 +4,9 @@ import { db, producteursTable, farmsTable, plotsTable, productionsTable } from "
 
 const router = Router();
 
-// GET /disponibilites?culture=&region=&departement=&cooperative=&quantite_min=
+// GET /disponibilites?culture=&region=&departement=&cooperative=&quantite_min=&producteur_id=
 router.get("/disponibilites", async (req: Request, res: Response): Promise<void> => {
-  const { culture, region, departement, cooperative, quantite_min } = req.query as Record<string, string>;
+  const { culture, region, departement, cooperative, quantite_min, producteur_id } = req.query as Record<string, string>;
 
   const conditions = [
     isNotNull(productionsTable.quantite_disponible),
@@ -27,6 +27,9 @@ router.get("/disponibilites", async (req: Request, res: Response): Promise<void>
   }
   if (quantite_min && !isNaN(Number(quantite_min))) {
     conditions.push(sql`${productionsTable.quantite_disponible}::numeric >= ${Number(quantite_min)}`);
+  }
+  if (producteur_id && !isNaN(Number(producteur_id))) {
+    conditions.push(sql`${producteursTable.id} = ${Number(producteur_id)}`);
   }
 
   const rows = await db

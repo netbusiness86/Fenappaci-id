@@ -1,5 +1,6 @@
 import { useParams, useLocation } from 'wouter';
 import { useGetProducteur, useDeleteProducteur } from '@workspace/api-client-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -27,11 +28,31 @@ import {
   ImageOff,
   Loader2,
   CreditCard,
+  ShoppingCart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
 import { useToast } from '@/hooks/use-toast';
 import { FarmsManager } from '@/components/FarmsManager';
+
+interface DispoItem {
+  production_id: number;
+  culture: string | null;
+  campagne: string | null;
+  quantite_disponible: number | null;
+  quantite_vente: number | null;
+  unite: string | null;
+  recherche_acheteur: string | null;
+  prix_souhaite: number | null;
+  periode_disponibilite: string | null;
+  producteur: { id: number; telephone: string | null; [key: string]: unknown };
+}
+
+async function fetchDisposByProducteur(producteurId: string): Promise<DispoItem[]> {
+  const res = await fetch(`/api/disponibilites?producteur_id=${producteurId}`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Erreur serveur');
+  return res.json();
+}
 
 /** Renders a photo from a signed object-storage URL with loading/error states. */
 function ObjectPhoto({
@@ -109,6 +130,12 @@ export default function DetailProducteur() {
 
   const { data: producteur, isLoading, isError } = useGetProducteur(id!);
   const deleteProducteur = useDeleteProducteur();
+
+  const { data: dispos = [] } = useQuery<DispoItem[]>({
+    queryKey: ['disponibilites', id],
+    queryFn: () => fetchDisposByProducteur(id!),
+    enabled: !!id,
+  });
 
   // ─── Loading ──────────────────────────────────────────────────────────────
   if (isLoading) {
@@ -352,6 +379,68 @@ export default function DetailProducteur() {
           />
         </Section>
       </div>
+
+      {/* Disponibilités à la vente */}
+      {dispos.length > 0 && (
+        <div className="px-4">
+          <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between bg-[#F57C00] text-white px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4" />
+                <span className="font-bold text-sm uppercase tracking-wider">Disponibilités à la vente</span>
+              </div>
+              <span className="text-white/80 text-xs font-medium">{dispos.length} production{dispos.length > 1 ? 's' : ''}</span>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {dispos.map(item => (
+                <div key={item.production_id} className="px-4 py-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold text-gray-900 text-sm uppercase tracking-wide">
+                      {item.culture ?? '—'}
+                    </p>
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-[#F57C00] text-base">
+                        {item.quantite_disponible != null ? item.quantite_disponible.toLocaleString('fr-FR') : '—'}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-1">{item.unite ?? 'Kg'}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 flex-wrap text-xs">
+                    {item.prix_souhaite != null && (
+                      <span className="text-gray-700 font-semibold">
+                        💰 {item.prix_souhaite.toLocaleString('fr-FR')} FCFA/{item.unite ?? 'Kg'}
+                      </span>
+                    )}
+                    {item.periode_disponibilite && (
+                      <span className="text-gray-500">📅 {item.periode_disponibilite}</span>
+                    )}
+                    {item.campagne && (
+                      <span className="text-gray-400">Campagne {item.campagne}</span>
+                    )}
+                  </div>
+                  {item.recherche_acheteur === 'OUI' && (
+                    <Badge className="bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2] text-[10px] flex items-center gap-1 w-fit">
+                      <ShoppingCart className="w-2.5 h-2.5" />
+                      Recherche acheteur
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+            {producteur.telephone && (
+              <div className="px-4 py-3 border-t border-gray-100 bg-[#F1F8E9]">
+                <a
+                  href={`tel:${producteur.telephone}`}
+                  className="flex items-center justify-center gap-2 w-full h-11 rounded-xl bg-[#1B5E20] text-white font-bold text-sm hover:bg-[#2E7D32] transition-colors"
+                >
+                  <Phone className="w-4 h-4" />
+                  Appeler ce producteur
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Exploitations & Parcelles */}
       <div className="px-4 pb-4">

@@ -160,8 +160,8 @@ export default function Disponibilites() {
                   <p className="text-[10px] font-mono text-gray-400">{item.producteur.numero_membre}</p>
                 </div>
                 {item.recherche_acheteur === 'OUI' && (
-                  <Badge className="bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2] text-[10px] flex items-center gap-1">
-                    <ShoppingCart className="w-2.5 h-2.5" />Acheteur recherché
+                  <Badge className="bg-[#F57C00] text-white border-0 text-[10px] font-bold flex items-center gap-1 shadow-sm animate-pulse-subtle px-2 py-0.5">
+                    <ShoppingCart className="w-2.5 h-2.5" />Recherche acheteur
                   </Badge>
                 )}
               </div>
