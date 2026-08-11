@@ -130,12 +130,12 @@ const CarteProducteur = forwardRef<HTMLDivElement, CarteProducteurProps>(
 
             {/* Champs */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {region && <InfoLine icon="📍" label="Région" value={region} />}
-              {departement && <InfoLine icon="🏛" label="Dépt" value={departement} />}
-              {village && <InfoLine icon="🏘" label="Localité" value={village} />}
-              {telephone && <InfoLine icon="📞" label="Tél" value={telephone} />}
-              {cooperative && <InfoLine icon="🌾" label="Coopérative" value={cooperative} />}
-              <InfoLine icon="📅" label="Inscrit" value={dateStr} />
+              {region && <InfoLine label="Région" value={region} />}
+              {departement && <InfoLine label="Dépt" value={departement} />}
+              {village && <InfoLine label="Localité" value={village} />}
+              {telephone && <InfoLine label="Tél" value={telephone} />}
+              {cooperative && <InfoLine label="Coopérative" value={cooperative} />}
+              <InfoLine label="Inscrit" value={dateStr} />
             </div>
           </div>
 
@@ -178,11 +178,15 @@ const CarteProducteur = forwardRef<HTMLDivElement, CarteProducteurProps>(
 export default CarteProducteur;
 
 // ── Sous-composant ligne d'info ──────────────────────────────────────────────
-function InfoLine({ icon, label, value }: { icon: string; label: string; value: string }) {
+function InfoLine({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-      <span style={{ fontSize: 10 }}>{icon}</span>
-      <span style={{ color: '#A5D6A7', fontSize: 9, fontWeight: 600, minWidth: 54, flexShrink: 0 }}>{label} :</span>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+      <span style={{
+        display: 'inline-block', width: 5, height: 5,
+        borderRadius: '50%', background: '#F57C00', flexShrink: 0,
+        marginBottom: 1,
+      }} />
+      <span style={{ color: '#A5D6A7', fontSize: 9, fontWeight: 700, minWidth: 58, flexShrink: 0, letterSpacing: 0.3 }}>{label} :</span>
       <span style={{ color: 'white', fontSize: 10, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
     </div>
   );
