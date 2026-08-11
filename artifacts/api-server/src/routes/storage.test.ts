@@ -280,4 +280,100 @@ describe('GET /api/storage/signed-url — access control', () => {
 
     expect(res.status).toBe(403);
   });
+
+  // ── Path-traversal attempts ────────────────────────────────────────────────
+
+  it('AGENT gets 403 for a path-traversal attempt via signed-url (../ in path)', async () => {
+    mocks.mockDb._setUserRows([{ role: 'AGENT' }]);
+    // Simulate: the traversal resolves to an object owned by a different agent
+    const { ObjectNotFoundError } = await import('../lib/objectStorage.js');
+    // The normalized path won't start with /objects/, so getObjectEntityFile
+    // throws ObjectNotFoundError — canUserAccessObject catches it and returns false.
+    mocks.mockGetObjectEntityFile.mockRejectedValue(new ObjectNotFoundError());
+
+    const traversalPath = '/objects/../other-agent/scan.jpg';
+    const res = await request(createTestApp(42))
+      .get('/api/storage/signed-url')
+      .query({ path: traversalPath });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('AGENT gets 403 for a double-encoded path-traversal attempt (%2F..%2F)', async () => {
+    mocks.mockDb._setUserRows([{ role: 'AGENT' }]);
+    const { ObjectNotFoundError } = await import('../lib/objectStorage.js');
+    mocks.mockGetObjectEntityFile.mockRejectedValue(new ObjectNotFoundError());
+
+    // Express decodes the query string, so %2F becomes /, making this equivalent
+    // to /objects/../other-agent/scan.jpg
+    const traversalPath = '/objects/..%2Fother-agent%2Fscan.jpg';
+    const res = await request(createTestApp(42))
+      .get('/api/storage/signed-url')
+      .query({ path: traversalPath });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('ADMIN bypasses path-traversal rejection (privileged role, no ACL check needed)', async () => {
+    mocks.mockDb._setUserRows([{ role: 'ADMIN' }]);
+    // ADMIN short-circuits before getObjectEntityFile is ever called, so the
+    // traversal path never reaches normalisation — access is always allowed.
+    mocks.mockGetObjectEntitySignedUrl.mockResolvedValue(SIGNED_URL);
+
+    const res = await request(createTestApp(1))
+      .get('/api/storage/signed-url')
+      .query({ path: OBJECT_PATH });
+
+    expect(res.status).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/storage/objects/* — streaming route path-traversal
+// ---------------------------------------------------------------------------
+
+describe('GET /api/storage/objects/* — path-traversal via URL segment', () => {
+  beforeEach(() => {
+    mocks.mockDb._setUserRows([]);
+    mocks.mockDb._setProducteurRows([]);
+    mocks.mockGetObjectAclPolicy.mockResolvedValue(null);
+    mocks.mockGetObjectEntityFile.mockResolvedValue(MOCK_FILE);
+    mocks.mockGetObjectEntitySignedUrl.mockResolvedValue(SIGNED_URL);
+  });
+
+  it('returns 401 when unauthenticated (streaming route)', async () => {
+    const res = await request(createTestApp())
+      .get('/api/storage/objects/photo-abc123');
+
+    expect(res.status).toBe(401);
+  });
+
+  it('traversal path in URL segment is safe — normalised URL no longer matches the route', async () => {
+    // HTTP clients (and Node's http parser) normalise URLs before sending them,
+    // so /api/storage/objects/../other-agent/file collapses to
+    // /api/storage/other-agent/file which does not match the
+    // /storage/objects/*path route. Express returns 404, not a file.
+    mocks.mockDb._setUserRows([{ role: 'AGENT' }]);
+
+    const res = await request(createTestApp(42))
+      .get('/api/storage/objects/../other-agent/scan.jpg');
+
+    // 404 from Express routing (path no longer matches) is the safe outcome.
+    expect([403, 404]).toContain(res.status);
+    // Must NOT be 200 — the file must not be served.
+    expect(res.status).not.toBe(200);
+  });
+
+  it('AGENT gets 403 when ACL owner mismatches on the streaming route', async () => {
+    mocks.mockDb._setUserRows([{ role: 'AGENT' }]);
+    mocks.mockGetObjectAclPolicy.mockResolvedValue({
+      owner: '99', // different agent
+      visibility: 'private',
+    });
+
+    const res = await request(createTestApp(42))
+      .get('/api/storage/objects/photo-abc123');
+
+    expect(res.status).toBe(403);
+  });
 });

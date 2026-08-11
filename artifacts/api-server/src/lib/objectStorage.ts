@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
+import { posix } from 'path';
 import { File, Storage } from '@google-cloud/storage';
 
 import {
@@ -142,11 +143,15 @@ export class ObjectStorageService {
   }
 
   async getObjectEntityFile(objectPath: string): Promise<File> {
-    if (!objectPath.startsWith('/objects/')) {
+    // Normalize first to collapse any `..` or `.` segments so that a crafted
+    // path like `/objects/../other-agent/file` cannot escape the `/objects/`
+    // prefix and reach a different agent's files.
+    const normalizedPath = posix.normalize(objectPath);
+    if (!normalizedPath.startsWith('/objects/')) {
       throw new ObjectNotFoundError();
     }
 
-    const parts = objectPath.slice(1).split('/');
+    const parts = normalizedPath.slice(1).split('/');
     if (parts.length < 2) {
       throw new ObjectNotFoundError();
     }
