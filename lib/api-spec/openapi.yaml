@@ -363,6 +363,9 @@ components:
           type: ["string", "null"]
         created_at:
           type: string
+        # Disponibilités
+        has_disponibilites:
+          type: boolean
 
     ProducteurInput:
       type: object

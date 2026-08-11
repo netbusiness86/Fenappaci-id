@@ -116,7 +116,8 @@ export const ListProducteursResponseItem = zod.object({
   "status": zod.string(),
   "agent_id": zod.number().nullish(),
   "agent_nom": zod.string().nullish(),
-  "created_at": zod.string()
+  "created_at": zod.string(),
+  "has_disponibilites": zod.boolean().optional()
 })
 export const ListProducteursResponse = zod.array(ListProducteursResponseItem)
 

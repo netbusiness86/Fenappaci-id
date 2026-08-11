@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useListProducteurs } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Plus, User, MapPin, ChevronRight, ImageOff, FileDown } from 'lucide-react';
+import { Search, Plus, User, MapPin, ChevronRight, ImageOff, FileDown, ShoppingBasket } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -175,11 +175,19 @@ export default function MyProducers() {
                   <MapPin className="w-3.5 h-3.5" />
                   <span className="truncate">{p.village}, {p.region}</span>
                 </div>
-                {p.cultures && (
-                  <p className="text-xs text-[#2E7D32] font-medium mt-1 truncate">
-                    {p.cultures}
-                  </p>
-                )}
+                <div className="flex items-center gap-2 mt-1">
+                  {p.cultures && (
+                    <p className="text-xs text-[#2E7D32] font-medium truncate">
+                      {p.cultures}
+                    </p>
+                  )}
+                  {p.has_disponibilites && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5 flex-none">
+                      <ShoppingBasket className="w-2.5 h-2.5" />
+                      Dispo
+                    </span>
+                  )}
+                </div>
               </div>
             </button>
           ))

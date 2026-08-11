@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, sql, desc, or } from "drizzle-orm";
-import { db, producteursTable, usersTable, cooperativesTable } from "@workspace/db";
+import { eq, sql, desc, or, and, isNotNull } from "drizzle-orm";
+import { db, producteursTable, usersTable, cooperativesTable, farmsTable, plotsTable, productionsTable } from "@workspace/db";
 import {
   ListProducteursQueryParams,
   CreateProducteurBody,
@@ -180,8 +180,28 @@ router.get("/producteurs", async (req: Request, res: Response): Promise<void> =>
   if (region) rows = rows.filter((p) => p.region?.toLowerCase().includes(region.toLowerCase()));
   if (status) rows = rows.filter((p) => p.status === status);
 
+  // Single batch query — find all producteur IDs that have at least one production
+  // with quantite_disponible > 0. No N+1 queries.
+  const disponiblesRows = await db
+    .selectDistinct({ producteur_id: farmsTable.producteur_id })
+    .from(productionsTable)
+    .innerJoin(plotsTable, eq(plotsTable.id, productionsTable.plot_id))
+    .innerJoin(farmsTable, eq(farmsTable.id, plotsTable.farm_id))
+    .where(
+      and(
+        isNotNull(productionsTable.quantite_disponible),
+        sql`${productionsTable.quantite_disponible}::numeric > 0`,
+      ),
+    );
+  const disponiblesSet = new Set(disponiblesRows.map((r) => r.producteur_id));
+
   const serialized = await Promise.all(rows.map(serializeProducteur));
-  res.json(ListProducteursResponse.parse(serialized));
+  const withFlags = serialized.map((p) => ({
+    ...p,
+    has_disponibilites: disponiblesSet.has(p.id),
+  }));
+
+  res.json(ListProducteursResponse.parse(withFlags));
 });
 
 // POST /producteurs

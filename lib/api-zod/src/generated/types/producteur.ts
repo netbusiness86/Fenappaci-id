@@ -85,4 +85,5 @@ export interface Producteur {
   /** @nullable */
   agent_nom?: string | null;
   created_at: string;
+  has_disponibilites?: boolean;
 }
