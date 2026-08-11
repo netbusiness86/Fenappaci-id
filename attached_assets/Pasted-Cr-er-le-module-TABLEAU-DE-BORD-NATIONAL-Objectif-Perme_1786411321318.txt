@@ -1,0 +1,137 @@
+Créer le module « TABLEAU DE BORD NATIONAL ».
+
+Objectif :
+Permettre à la Direction Générale FENAPPACI de visualiser en temps réel les statistiques nationales.
+
+Créer une page :
+
+TABLEAU DE BORD NATIONAL
+
+--------------------------------------------------
+
+INDICATEURS PRINCIPAUX
+
+Afficher :
+
+- Nombre total de producteurs
+- Nombre total de coopératives
+- Nombre total d'exploitations
+- Nombre total de parcelles
+- Superficie totale enregistrée
+- Production totale estimée
+- Production disponible
+- Nombre d'agents actifs
+
+Calcul automatique à partir des données PostgreSQL.
+
+--------------------------------------------------
+
+RÉPARTITION GÉOGRAPHIQUE
+
+Afficher :
+
+- Producteurs par région
+- Coopératives par région
+- Exploitations par région
+
+Graphiques interactifs.
+
+--------------------------------------------------
+
+RÉPARTITION PAR FILIÈRE
+
+Afficher :
+
+- Hévéa
+- Cacao
+- Café
+- Palmier à huile
+- Anacarde
+- Riz
+- Maïs
+- Manioc
+- Banane plantain
+- Autres
+
+Afficher :
+
+- Nombre de producteurs
+- Superficie totale
+- Production estimée
+- Production disponible
+
+--------------------------------------------------
+
+CARTE FENAPPACI
+
+Intégrer OpenStreetMap.
+
+Afficher :
+
+- Producteurs géolocalisés
+- Exploitations géolocalisées
+- Coopératives géolocalisées
+
+Cliquer sur un point doit ouvrir :
+
+Nom
+Numéro FENAPPACI
+Téléphone
+Localité
+Cultures
+
+Prévoir des filtres :
+
+- Région
+- Département
+- Culture
+- Coopérative
+
+--------------------------------------------------
+
+RECHERCHE AVANCÉE
+
+Permettre de rechercher :
+
+- Producteur
+- Coopérative
+- Culture
+- Région
+- Département
+
+--------------------------------------------------
+
+EXPORTS
+
+Créer :
+
+- Export Excel
+- Export PDF
+
+Pour :
+
+- Producteurs
+- Coopératives
+- Productions
+
+--------------------------------------------------
+
+SÉCURITÉ
+
+Le tableau de bord national doit être accessible uniquement aux profils :
+
+- ADMIN
+- DIRECTION
+
+--------------------------------------------------
+
+TESTS
+
+Vérifier :
+
+1. Calcul des statistiques
+2. Fonctionnement des graphiques
+3. Fonctionnement de la carte
+4. Fonctionnement des filtres
+5. Export PDF
+6. Export Excel

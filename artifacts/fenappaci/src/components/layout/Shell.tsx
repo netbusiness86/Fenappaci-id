@@ -1,10 +1,12 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Users, UserPlus, Search, UserCircle, ShoppingBasket, Building2 } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, UserCircle, ShoppingBasket, Building2, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
+const PRIVILEGED = ['ADMIN', 'DIRECTION'];
+
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [location] = useLocation();
 
   // If not authenticated, just render children (like Login page)
@@ -12,12 +14,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return <div className="min-h-[100dvh] bg-background">{children}</div>;
   }
 
+  const isPrivileged = PRIVILEGED.includes(user?.role ?? '');
+
   const tabs = [
     { name: 'Tableau', href: '/tableau-de-bord', icon: LayoutDashboard },
     { name: 'Producteurs', href: '/mes-producteurs', icon: Users },
     { name: 'Identifier', href: '/identifier', icon: UserPlus },
     { name: 'Coopérat.', href: '/cooperatives', icon: Building2 },
     { name: 'Marchés', href: '/disponibilites', icon: ShoppingBasket },
+    ...(isPrivileged ? [{ name: 'National', href: '/national', icon: Globe }] : []),
     { name: 'Profil', href: '/profil', icon: UserCircle },
   ];
 

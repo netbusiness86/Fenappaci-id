@@ -28,6 +28,7 @@ import CooperativesListPage from '@/pages/CooperativesListPage';
 import CreateCooperativePage from '@/pages/CreateCooperativePage';
 import DetailCooperativePage from '@/pages/DetailCooperativePage';
 import EditCooperativePage from '@/pages/EditCooperativePage';
+import NationalDashboard from '@/pages/NationalDashboard';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -89,6 +90,9 @@ function Router() {
           </Route>
           <Route path="/cooperatives">
             <ProtectedRoute><CooperativesListPage /></ProtectedRoute>
+          </Route>
+          <Route path="/national">
+            <ProtectedRoute><NationalDashboard /></ProtectedRoute>
           </Route>
           <Route path="/profil">
             <ProtectedRoute><Profile /></ProtectedRoute>
