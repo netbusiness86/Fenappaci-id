@@ -1,8 +1,10 @@
 import { Router, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
-import { db, plotsTable, productionsTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { db, plotsTable, farmsTable, producteursTable, productionsTable, usersTable } from "@workspace/db";
 
 const router = Router();
+
+const PRIVILEGED_ROLES = ['DIRECTION', 'ADMIN'];
 
 function sp(r: typeof productionsTable.$inferSelect) {
   return {
@@ -28,7 +30,73 @@ function sp(r: typeof productionsTable.$inferSelect) {
 function num(v: unknown) { return v != null && v !== '' ? String(v) : null; }
 function int(v: unknown) { return v != null && v !== '' ? parseInt(String(v)) : null; }
 
-// GET /plots/:id/productions
+// ── Auth helpers ───────────────────────────────────────────────────────────────
+
+/** Returns the authenticated userId or sends 401 and returns null. */
+function requireSession(req: Request, res: Response): number | null {
+  const userId = (req.session as any)?.userId as number | undefined;
+  if (!userId) { res.status(401).json({ error: "Non authentifié" }); return null; }
+  return userId;
+}
+
+/**
+ * Fetches the producteur that owns the given plot (via plot → farm → producteur).
+ * Returns null and sends 404 if the chain is broken.
+ */
+async function getProducteurForPlot(plotId: number, req: Request, res: Response): Promise<{ agent_id: number | null; producteur_id: number } | null> {
+  const [row] = await db
+    .select({ agent_id: producteursTable.agent_id, producteur_id: producteursTable.id })
+    .from(plotsTable)
+    .innerJoin(farmsTable, eq(plotsTable.farm_id, farmsTable.id))
+    .innerJoin(producteursTable, eq(farmsTable.producteur_id, producteursTable.id))
+    .where(eq(plotsTable.id, plotId));
+
+  if (!row) { res.status(404).json({ error: "Parcelle ou producteur non trouvé" }); return null; }
+  return row;
+}
+
+/**
+ * Fetches the producteur that owns the given production (via production → plot → farm → producteur).
+ * Returns null and sends 404 if not found.
+ */
+async function getProducteurForProduction(productionId: number, req: Request, res: Response): Promise<{ agent_id: number | null; producteur_id: number } | null> {
+  const [row] = await db
+    .select({ agent_id: producteursTable.agent_id, producteur_id: producteursTable.id })
+    .from(productionsTable)
+    .innerJoin(plotsTable, eq(productionsTable.plot_id, plotsTable.id))
+    .innerJoin(farmsTable, eq(plotsTable.farm_id, farmsTable.id))
+    .innerJoin(producteursTable, eq(farmsTable.producteur_id, producteursTable.id))
+    .where(eq(productionsTable.id, productionId));
+
+  if (!row) { res.status(404).json({ error: "Production non trouvée" }); return null; }
+  return row;
+}
+
+/**
+ * Checks that the caller is allowed to mutate the given producer's record.
+ * Privileged roles (DIRECTION, ADMIN) can always mutate.
+ * Non-privileged users (AGENT, etc.) may only mutate producers where
+ * agent_id matches their own userId. Legacy producers with agent_id = null
+ * are explicitly denied to non-privileged users pending a formal policy review
+ * (see task: "Decide and test whether legacy producers should be editable by anyone").
+ * Returns true on success; sends 403 and returns false on denial.
+ */
+async function canMutate(userId: number, agentId: number | null, res: Response): Promise<boolean> {
+  const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) { res.status(403).json({ error: "Utilisateur inconnu" }); return false; }
+  if (PRIVILEGED_ROLES.includes(user.role)) return true;
+  // Non-privileged users: must own the producer (exact match required).
+  // Legacy producers (agent_id === null) are not editable by non-privileged users.
+  if (agentId === null || agentId !== userId) {
+    res.status(403).json({ error: "Accès refusé : vous ne pouvez pas modifier ce dossier." });
+    return false;
+  }
+  return true;
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+
+// GET /plots/:id/productions  (read — no auth required)
 router.get("/plots/:id/productions", async (req: Request, res: Response): Promise<void> => {
   const plotId = int(req.params.id);
   if (plotId == null) { res.status(400).json({ error: "ID invalide" }); return; }
@@ -36,14 +104,19 @@ router.get("/plots/:id/productions", async (req: Request, res: Response): Promis
   res.json(rows.map(sp));
 });
 
-// POST /plots/:id/productions
+// POST /plots/:id/productions  (write — requires auth + ownership)
 router.post("/plots/:id/productions", async (req: Request, res: Response): Promise<void> => {
   const plotId = int(req.params.id);
   if (plotId == null) { res.status(400).json({ error: "ID invalide" }); return; }
 
-  // Verify plot exists
-  const [plot] = await db.select().from(plotsTable).where(eq(plotsTable.id, plotId));
-  if (!plot) { res.status(404).json({ error: "Parcelle non trouvée" }); return; }
+  const userId = requireSession(req, res);
+  if (userId == null) return;
+
+  const owner = await getProducteurForPlot(plotId, req, res);
+  if (!owner) return;
+
+  const allowed = await canMutate(userId, owner.agent_id, res);
+  if (!allowed) return;
 
   const b = req.body ?? {};
   const [row] = await db.insert(productionsTable).values({
@@ -67,10 +140,19 @@ router.post("/plots/:id/productions", async (req: Request, res: Response): Promi
   res.status(201).json(sp(row));
 });
 
-// PATCH /productions/:id
+// PATCH /productions/:id  (write — requires auth + ownership)
 router.patch("/productions/:id", async (req: Request, res: Response): Promise<void> => {
   const id = int(req.params.id);
   if (id == null) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  const userId = requireSession(req, res);
+  if (userId == null) return;
+
+  const owner = await getProducteurForProduction(id, req, res);
+  if (!owner) return;
+
+  const allowed = await canMutate(userId, owner.agent_id, res);
+  if (!allowed) return;
 
   const b = req.body ?? {};
   const u: Record<string, unknown> = { updated_at: new Date() };
@@ -84,10 +166,20 @@ router.patch("/productions/:id", async (req: Request, res: Response): Promise<vo
   res.json(sp(updated));
 });
 
-// DELETE /productions/:id
+// DELETE /productions/:id  (write — requires auth + ownership)
 router.delete("/productions/:id", async (req: Request, res: Response): Promise<void> => {
   const id = int(req.params.id);
   if (id == null) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  const userId = requireSession(req, res);
+  if (userId == null) return;
+
+  const owner = await getProducteurForProduction(id, req, res);
+  if (!owner) return;
+
+  const allowed = await canMutate(userId, owner.agent_id, res);
+  if (!allowed) return;
+
   await db.delete(productionsTable).where(eq(productionsTable.id, id));
   res.status(204).send();
 });

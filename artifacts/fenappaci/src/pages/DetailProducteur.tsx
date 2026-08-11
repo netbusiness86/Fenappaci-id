@@ -1,9 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useGetProducteur, useDeleteProducteur } from '@workspace/api-client-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +34,7 @@ import {
   ShoppingCart,
   Download,
   Printer,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
@@ -75,6 +78,251 @@ async function fetchDisposByProducteur(producteurId: string): Promise<DispoItem[
   const res = await fetch(`/api/disponibilites?producteur_id=${producteurId}`, { credentials: 'include' });
   if (!res.ok) throw new Error('Erreur serveur');
   return res.json();
+}
+
+// ── Types for Add-Dispo form ───────────────────────────────────────────────────
+interface PlotOption { id: number; label: string; }
+
+async function apiFetch(url: string, opts?: RequestInit) {
+  const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? 'Erreur serveur');
+  return data;
+}
+
+const UNITES = ['Kg', 'Tonnes', 'Sacs', 'Litres', 'Autre'];
+const FL = ({ children, required }: { children: React.ReactNode; required?: boolean }) => (
+  <label className="text-xs uppercase font-semibold text-gray-500 mb-1 block">
+    {children}{required && <span className="text-red-400 ml-0.5">*</span>}
+  </label>
+);
+
+/**
+ * Formulaire simplifié d'ajout d'une disponibilité, affiché inline dans le bloc
+ * "Disponibilités à la vente" de la fiche producteur.
+ */
+function AddDispoForm({ producteurId, onClose, onSuccess }: {
+  producteurId: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  const [plotId, setPlotId] = useState<string>('');
+  const [d, setD] = useState({
+    culture: '',
+    quantite_disponible: '',
+    quantite_vente: '',
+    unite: 'Kg',
+    prix_souhaite: '',
+    periode_disponibilite: '',
+    recherche_acheteur: 'NON',
+  });
+
+  // Fetch farms with plots for this producer
+  const { data: farms = [], isLoading: farmsLoading } = useQuery<Array<{ id: number; nom: string | null; localite: string | null; plots: Array<{ id: number; reference: string | null; culture_principale: string | null }> }>>({
+    queryKey: ['farms', producteurId],
+    queryFn: () => apiFetch(`/api/producteurs/${producteurId}/farms`),
+    enabled: !!producteurId,
+  });
+
+  // Flatten to plot options with human-readable labels
+  const plotOptions: PlotOption[] = farms.flatMap(farm =>
+    farm.plots.map(plot => ({
+      id: plot.id,
+      label: [
+        farm.nom ?? farm.localite ?? `Exploitation #${farm.id}`,
+        plot.reference ?? plot.culture_principale ?? `Parcelle #${plot.id}`,
+      ].join(' › '),
+    }))
+  );
+
+  const s = (k: string, v: string) => setD(p => ({ ...p, [k]: v }));
+  const num = (v: string) => v !== '' ? parseFloat(v) : undefined;
+
+  const addMutation = useMutation({
+    mutationFn: (payload: Record<string, unknown>) =>
+      apiFetch(`/api/plots/${plotId}/productions`, { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      toast({ title: 'Disponibilité ajoutée', description: `La disponibilité en ${d.culture} a été enregistrée.` });
+      onSuccess();
+    },
+    onError: (e: Error) => toast({ title: 'Erreur', description: e.message, variant: 'destructive' }),
+  });
+
+  const handleSubmit = () => {
+    if (!plotId) {
+      toast({ title: 'Parcelle requise', description: 'Veuillez sélectionner une parcelle.', variant: 'destructive' });
+      return;
+    }
+    if (!d.culture.trim()) {
+      toast({ title: 'Culture requise', description: 'Veuillez indiquer la culture.', variant: 'destructive' });
+      return;
+    }
+    const qte = parseFloat(d.quantite_disponible);
+    if (!d.quantite_disponible || isNaN(qte) || qte <= 0) {
+      toast({ title: 'Quantité invalide', description: 'La quantité disponible doit être supérieure à zéro.', variant: 'destructive' });
+      return;
+    }
+    addMutation.mutate({
+      culture: d.culture.trim(),
+      quantite_disponible: num(d.quantite_disponible),
+      quantite_vente: num(d.quantite_vente),
+      unite: d.unite,
+      prix_souhaite: num(d.prix_souhaite),
+      periode_disponibilite: d.periode_disponibilite.trim() || undefined,
+      recherche_acheteur: d.recherche_acheteur,
+    });
+  };
+
+  if (farmsLoading) {
+    return (
+      <div className="px-4 py-4 flex items-center gap-2 text-sm text-gray-500">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        Chargement des parcelles…
+      </div>
+    );
+  }
+
+  if (plotOptions.length === 0) {
+    return (
+      <div className="px-4 py-4 space-y-3">
+        <p className="text-sm text-gray-600">
+          Ce producteur n'a pas encore de parcelle. Ajoutez d'abord une exploitation et une parcelle dans le bloc <strong>Exploitations agricoles</strong>.
+        </p>
+        <Button type="button" variant="outline" className="h-9 text-sm w-full" onClick={onClose}>
+          Fermer
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-4 bg-[#FFF8F0] border-t border-[#FFE0B2] space-y-3">
+      {/* Header with back button */}
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={onClose} className="p-1 rounded hover:bg-orange-100">
+          <ArrowLeft className="w-4 h-4 text-gray-600" />
+        </button>
+        <span className="text-sm font-bold text-gray-700">Nouvelle disponibilité</span>
+      </div>
+
+      {/* Parcelle selector */}
+      <div className="space-y-1">
+        <FL required>Parcelle</FL>
+        <Select value={plotId} onValueChange={setPlotId}>
+          <SelectTrigger className="h-10 bg-white text-sm">
+            <SelectValue placeholder="Choisir une parcelle…" />
+          </SelectTrigger>
+          <SelectContent>
+            {plotOptions.map(p => (
+              <SelectItem key={p.id} value={String(p.id)}>{p.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Culture */}
+      <div className="space-y-1">
+        <FL required>Culture</FL>
+        <Input
+          className="h-10 bg-white text-sm"
+          placeholder="Cacao, Café, Hévéa…"
+          value={d.culture}
+          onChange={e => s('culture', e.target.value)}
+        />
+      </div>
+
+      {/* Quantité + unité */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <FL>Qté disponible</FL>
+          <Input
+            type="number" min="0" step="0.01"
+            className="h-10 bg-white text-sm"
+            placeholder="0"
+            value={d.quantite_disponible}
+            onChange={e => s('quantite_disponible', e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <FL>Unité</FL>
+          <Select value={d.unite} onValueChange={v => s('unite', v)}>
+            <SelectTrigger className="h-10 bg-white text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {UNITES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Qté à vendre + prix */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <FL>Qté à vendre</FL>
+          <Input
+            type="number" min="0" step="0.01"
+            className="h-10 bg-white text-sm"
+            placeholder="0"
+            value={d.quantite_vente}
+            onChange={e => s('quantite_vente', e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <FL>Prix souhaité (FCFA)</FL>
+          <Input
+            type="number" min="0" step="1"
+            className="h-10 bg-white text-sm"
+            placeholder="0"
+            value={d.prix_souhaite}
+            onChange={e => s('prix_souhaite', e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Période */}
+      <div className="space-y-1">
+        <FL>Période de disponibilité</FL>
+        <Input
+          className="h-10 bg-white text-sm"
+          placeholder="Jan–Mar"
+          value={d.periode_disponibilite}
+          onChange={e => s('periode_disponibilite', e.target.value)}
+        />
+      </div>
+
+      {/* Recherche acheteur */}
+      <div className="space-y-1">
+        <FL>Recherche acheteur</FL>
+        <div className="grid grid-cols-2 gap-2">
+          {['OUI', 'NON'].map(opt => (
+            <button key={opt} type="button" onClick={() => s('recherche_acheteur', opt)}
+              className={cn('h-10 rounded-xl font-bold text-sm border transition-all',
+                d.recherche_acheteur === opt
+                  ? opt === 'OUI' ? 'bg-[#F57C00] text-white border-[#F57C00]' : 'bg-gray-700 text-white border-gray-700'
+                  : 'bg-white text-gray-500 border-gray-200')}>
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 pt-1">
+        <Button type="button" variant="outline" className="flex-1 h-10 text-sm" onClick={onClose} disabled={addMutation.isPending}>
+          Annuler
+        </Button>
+        <Button
+          type="button"
+          disabled={addMutation.isPending || !d.culture.trim() || !plotId || !d.quantite_disponible || parseFloat(d.quantite_disponible) <= 0}
+          className="flex-1 h-10 text-sm bg-[#F57C00] hover:bg-[#E65100] text-white"
+          onClick={handleSubmit}
+        >
+          {addMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -182,9 +430,12 @@ export default function DetailProducteur() {
 
   const { data: producteur, isLoading, isError } = useGetProducteur(id!);
   const deleteProducteur = useDeleteProducteur();
+  const qc = useQueryClient();
 
   /** Direction and Admin can download/print sensitive documents. */
   const isPrivileged = !!user && PRIVILEGED_ROLES.includes(user.role as typeof PRIVILEGED_ROLES[number]);
+
+  const [addingDispo, setAddingDispo] = useState(false);
 
   const { data: dispos = [] } = useQuery<DispoItem[]>({
     queryKey: ['disponibilites', id],
@@ -453,16 +704,45 @@ export default function DetailProducteur() {
       </div>
 
       {/* Disponibilités à la vente */}
-      {dispos.length > 0 && (
-        <div className="px-4">
-          <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between bg-[#F57C00] text-white px-4 py-2.5">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4" />
-                <span className="font-bold text-sm uppercase tracking-wider">Disponibilités à la vente</span>
-              </div>
-              <span className="text-white/80 text-xs font-medium">{dispos.length} production{dispos.length > 1 ? 's' : ''}</span>
+      <div className="px-4">
+        <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between bg-[#F57C00] text-white px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4" />
+              <span className="font-bold text-sm uppercase tracking-wider">Disponibilités à la vente</span>
             </div>
+            <div className="flex items-center gap-2">
+              {dispos.length > 0 && (
+                <span className="text-white/80 text-xs font-medium">{dispos.length} production{dispos.length > 1 ? 's' : ''}</span>
+              )}
+              {user && !addingDispo && (
+                <button
+                  type="button"
+                  onClick={() => setAddingDispo(true)}
+                  className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-2 py-1 rounded-lg transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Ajouter
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Add form — only for authenticated users */}
+          {addingDispo && user && (
+            <AddDispoForm
+              producteurId={id!}
+              onClose={() => setAddingDispo(false)}
+              onSuccess={() => {
+                setAddingDispo(false);
+                qc.invalidateQueries({ queryKey: ['disponibilites', id] });
+              }}
+            />
+          )}
+
+          {/* List of existing dispos */}
+          {dispos.length > 0 ? (
             <div className="divide-y divide-gray-100">
               {dispos.map(item => (
                 <div key={item.production_id} className="px-4 py-3 space-y-1.5">
@@ -499,20 +779,28 @@ export default function DetailProducteur() {
                 </div>
               ))}
             </div>
-            {producteur.telephone && (
-              <div className="px-4 py-3 border-t border-gray-100 bg-[#F1F8E9]">
-                <a
-                  href={`tel:${producteur.telephone}`}
-                  className="flex items-center justify-center gap-2 w-full h-11 rounded-xl bg-[#1B5E20] text-white font-bold text-sm hover:bg-[#2E7D32] transition-colors"
-                >
-                  <Phone className="w-4 h-4" />
-                  Appeler ce producteur
-                </a>
+          ) : (
+            !addingDispo && (
+              <div className="px-4 py-4 text-sm text-gray-400 italic text-center">
+                Aucune disponibilité enregistrée
               </div>
-            )}
-          </div>
+            )
+          )}
+
+          {/* Call CTA */}
+          {producteur.telephone && (
+            <div className="px-4 py-3 border-t border-gray-100 bg-[#F1F8E9]">
+              <a
+                href={`tel:${producteur.telephone}`}
+                className="flex items-center justify-center gap-2 w-full h-11 rounded-xl bg-[#1B5E20] text-white font-bold text-sm hover:bg-[#2E7D32] transition-colors"
+              >
+                <Phone className="w-4 h-4" />
+                Appeler ce producteur
+              </a>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Exploitations & Parcelles */}
       <div className="px-4 pb-4">
