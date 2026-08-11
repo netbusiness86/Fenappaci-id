@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { sql, gte, eq } from "drizzle-orm";
+import { sql, gte, eq, desc, isNotNull } from "drizzle-orm";
 import { db, producteursTable, cooperativesTable, farmsTable, plotsTable, productionsTable, usersTable } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -263,6 +263,107 @@ router.get("/exports/:type", async (req: Request, res: Response): Promise<void> 
   }
 
   res.status(404).json({ error: "Type d'export inconnu" });
+});
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+async function requirePrivileged(req: Request, res: Response): Promise<boolean> {
+  const session = req.session as any;
+  if (!session?.userId) { res.status(401).json({ error: "Non authentifié" }); return false; }
+  const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, session.userId));
+  if (!me || !["ADMIN", "DIRECTION"].includes(me.role)) { res.status(403).json({ error: "Accès interdit" }); return false; }
+  return true;
+}
+
+// GET /admin/database/producteurs ─────────────────────────────────────────────
+router.get("/admin/database/producteurs", async (req: Request, res: Response): Promise<void> => {
+  if (!(await requirePrivileged(req, res))) return;
+
+  const rows = await db.select().from(producteursTable).orderBy(desc(producteursTable.created_at));
+
+  const coops = await db.select({ id: cooperativesTable.id, nom: cooperativesTable.nom }).from(cooperativesTable);
+  const coopMap = new Map(coops.map((c) => [c.id, c.nom]));
+
+  const agents = await db
+    .select({ id: usersTable.id, nom: usersTable.nom, prenoms: usersTable.prenoms })
+    .from(usersTable);
+  const agentMap = new Map(agents.map((a) => [a.id, `${a.prenoms ?? ""} ${a.nom ?? ""}`.trim()]));
+
+  const result = rows.map((p) => ({
+    id: p.id,
+    numero_membre: p.numero_membre,
+    nom: p.nom,
+    prenoms: p.prenoms,
+    sexe: p.sexe ?? null,
+    date_naissance: p.date_naissance ?? null,
+    telephone: p.telephone ?? null,
+    telephone_secondaire: (p as any).telephone_secondaire ?? null,
+    region: p.region ?? null,
+    departement: p.departement ?? null,
+    sous_prefecture: (p as any).sous_prefecture ?? null,
+    village: p.village ?? null,
+    cooperative_nom: p.cooperative_id ? (coopMap.get(p.cooperative_id) ?? null) : null,
+    cooperative_fonction: (p as any).cooperative_fonction ?? null,
+    cultures: p.cultures ?? null,
+    superficie_ha: p.superficie_ha ? parseFloat(p.superficie_ha as string) : null,
+    status: p.status ?? "ACTIF",
+    agent_nom: p.agent_id ? (agentMap.get(p.agent_id) ?? null) : null,
+    created_at: p.created_at.toISOString(),
+  }));
+
+  res.json(result);
+});
+
+// GET /admin/database/cooperatives ────────────────────────────────────────────
+router.get("/admin/database/cooperatives", async (req: Request, res: Response): Promise<void> => {
+  if (!(await requirePrivileged(req, res))) return;
+
+  const rows = await db.select().from(cooperativesTable).orderBy(cooperativesTable.nom);
+
+  const counts = await db
+    .select({ cooperative_id: producteursTable.cooperative_id, count: sql<number>`count(*)::int` })
+    .from(producteursTable)
+    .where(isNotNull(producteursTable.cooperative_id))
+    .groupBy(producteursTable.cooperative_id);
+  const countMap = new Map(counts.map((c) => [c.cooperative_id, c.count]));
+
+  const prodResult = await db.execute(sql`
+    SELECT p.cooperative_id,
+           COALESCE(SUM(pr.production_campagne_en_cours::numeric), 0)::float AS production_totale,
+           COALESCE(SUM(pr.quantite_disponible::numeric), 0)::float AS quantite_disponible
+    FROM producteurs p
+    JOIN farms f ON f.producteur_id = p.id
+    JOIN plots pl ON pl.farm_id = f.id
+    JOIN productions pr ON pr.plot_id = pl.id
+    WHERE p.cooperative_id IS NOT NULL
+    GROUP BY p.cooperative_id
+  `);
+  const prodRows = ((prodResult as any).rows ?? prodResult) as any[];
+  const prodMap = new Map(prodRows.map((r) => [Number(r.cooperative_id), { prod: Number(r.production_totale), dispo: Number(r.quantite_disponible) }]));
+
+  const result = rows.map((c) => ({
+    id: c.id,
+    nom: c.nom,
+    sigle: c.sigle ?? null,
+    numero_identification: c.numero_identification ?? null,
+    region: c.region ?? null,
+    departement: c.departement ?? null,
+    sous_prefecture: c.sous_prefecture ?? null,
+    village: c.village ?? null,
+    president: c.president ?? null,
+    vice_president: c.vice_president ?? null,
+    secretaire: c.secretaire ?? null,
+    tresorier: c.tresorier ?? null,
+    telephone: c.telephone ?? null,
+    email: c.email ?? null,
+    date_creation: c.date_creation ?? null,
+    nombre_membres: countMap.get(c.id) ?? 0,
+    production_totale: prodMap.get(c.id)?.prod ?? 0,
+    quantite_disponible: prodMap.get(c.id)?.dispo ?? 0,
+    created_at: c.created_at.toISOString(),
+  }));
+
+  res.json(result);
 });
 
 export default router;

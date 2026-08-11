@@ -29,6 +29,7 @@ import CreateCooperativePage from '@/pages/CreateCooperativePage';
 import DetailCooperativePage from '@/pages/DetailCooperativePage';
 import EditCooperativePage from '@/pages/EditCooperativePage';
 import NationalDashboard from '@/pages/NationalDashboard';
+import AdminDatabasePage from '@/pages/AdminDatabasePage';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -93,6 +94,9 @@ function Router() {
           </Route>
           <Route path="/national">
             <ProtectedRoute><NationalDashboard /></ProtectedRoute>
+          </Route>
+          <Route path="/admin/base-de-donnees">
+            <ProtectedRoute><AdminDatabasePage /></ProtectedRoute>
           </Route>
           <Route path="/profil">
             <ProtectedRoute><Profile /></ProtectedRoute>

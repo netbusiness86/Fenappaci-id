@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import {
   Users, Building2, Tractor, Leaf, TrendingUp, ShoppingBasket,
   UserCog, Sprout, MapPin, BarChart3, Search, Download, Globe,
-  Loader2, AlertTriangle, X,
+  Loader2, AlertTriangle, X, Database, ChevronRight,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -494,6 +494,24 @@ export default function NationalDashboard() {
               <p className="text-xs text-[#1B5E20]/70">
                 Pour générer un rapport PDF complet, utilisez la fonction impression du navigateur (Ctrl+P / Cmd+P) depuis cette page — les graphiques et tableaux sont optimisés pour l'impression.
               </p>
+            </div>
+
+            {/* Base de données ADMIN */}
+            <div className="mt-2">
+              <SectionTitle>Base de données</SectionTitle>
+              <p className="text-xs text-gray-500 mb-3">Explorez, filtrez et regroupez l'intégralité des données producteurs et coopératives, puis exportez en Excel ou PDF.</p>
+              <Link href="/admin/base-de-donnees">
+                <div className="flex items-center gap-4 bg-[#1B5E20] text-white rounded-2xl p-4 shadow-md cursor-pointer hover:bg-[#2E7D32] transition-colors">
+                  <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Database className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm">Base de données complète</p>
+                    <p className="text-xs text-green-200 mt-0.5">Producteurs · Coopératives · Filtres · Regroupements · Excel / PDF</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-green-300 flex-shrink-0" />
+                </div>
+              </Link>
             </div>
           </>
         )}
