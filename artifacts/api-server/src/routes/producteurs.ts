@@ -220,6 +220,25 @@ router.post("/producteurs", async (req: Request, res: Response): Promise<void> =
     }
   }
 
+  // Determine the agent_id to record on the new producteur.
+  // Privileged users (Direction / Admin) may supply a specific agent_id in the
+  // body to create a record on behalf of another agent.
+  // Regular agents always get their own session ID — any agent_id in the body
+  // is silently ignored so they cannot self-reassign to someone else.
+  let resolvedAgentId: number | null = agentId;
+  if (agentId) {
+    const [sessionUserForPost] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, agentId));
+
+    if (sessionUserForPost && PRIVILEGED_ROLES.includes(sessionUserForPost.role)) {
+      // Privileged: honour the caller-supplied agent_id if present.
+      resolvedAgentId = (data as any).agent_id ?? agentId;
+    }
+    // Non-privileged: resolvedAgentId stays as agentId (their own ID).
+  }
+
   const insertData: any = {
     nom: data.nom,
     prenoms: data.prenoms,
@@ -256,7 +275,7 @@ router.post("/producteurs", async (req: Request, res: Response): Promise<void> =
     gps_precision: (data as any).gps_precision ?? null,
     gps_captured_at: (data as any).gps_captured_at ?? null,
     numero_membre: "TEMP",
-    agent_id: agentId,
+    agent_id: resolvedAgentId,
   };
 
   const [inserted] = await db.insert(producteursTable).values(insertData).returning();
@@ -368,6 +387,21 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
     if (data[field] !== undefined) {
       updateData[field] = field === "superficie_ha" ? String(data[field]) : data[field];
     }
+  }
+
+  // Allow Direction / Admin to reassign the producteur to a different agent.
+  // Regular agents are never allowed to change agent_id (field is not in the
+  // list above and this block is guarded by the privilege check already done).
+  if (sessionUserId && data.agent_id !== undefined) {
+    const [sessionUserForPatch] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, sessionUserId));
+
+    if (sessionUserForPatch && PRIVILEGED_ROLES.includes(sessionUserForPatch.role)) {
+      updateData.agent_id = data.agent_id;
+    }
+    // Non-privileged users: silently drop any agent_id supplied in the body.
   }
 
   const [updated] = await db
