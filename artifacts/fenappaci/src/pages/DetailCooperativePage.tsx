@@ -10,13 +10,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Building2, Users, BarChart3, Pencil, Printer, Download,
   Loader2, AlertTriangle, MapPin, Phone, Mail, Calendar, UserCheck,
-  Plus, X, Search, Tractor, Leaf, TrendingUp, Trash2,
+  Plus, X, Search, Tractor, Leaf, TrendingUp, Trash2, FileDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Tab = 'infos' | 'membres' | 'stats';
 
@@ -41,6 +42,9 @@ export default function DetailCooperativePage() {
   const { mutateAsync: addMembre, isPending: addingMembre } = useAddCooperativeMembre();
   const { mutateAsync: removeMembre } = useRemoveCooperativeMembre();
   const { mutateAsync: deleteCoop, isPending: deletingCoop } = useDeleteCooperative();
+
+  const { user } = useAuth();
+  const canExportStats = !!user && ['ADMIN', 'DIRECTION'].includes(user.role);
 
   const membresIds = new Set((membres ?? []).map((m) => m.id));
 
@@ -76,6 +80,46 @@ export default function DetailCooperativePage() {
     await queryClient.invalidateQueries({ queryKey: ['/api/cooperatives'] });
     toast({ title: 'Coopérative supprimée' });
     setLocation('/cooperatives');
+  };
+
+  const handleExportStatsCSV = () => {
+    if (!stats || !coop) return;
+    const dateExport = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const rows: string[][] = [];
+
+    // Header info
+    rows.push(['Coopérative', coop.nom]);
+    rows.push(['Date export', dateExport]);
+    rows.push([]);
+
+    // KPIs globaux
+    rows.push(['Indicateurs globaux', '']);
+    rows.push(['Producteurs', String(stats.nombre_producteurs)]);
+    rows.push(['Exploitations', String(stats.nombre_exploitations)]);
+    rows.push(['Parcelles', String(stats.nombre_parcelles)]);
+    rows.push(['Superficie totale (ha)', stats.superficie_totale.toFixed(2)]);
+    rows.push(['Production totale estimée (T)', stats.production_totale.toFixed(2)]);
+    rows.push(['Disponible à la vente (T)', stats.production_disponible.toFixed(2)]);
+    rows.push([]);
+
+    // Par culture
+    if (stats.par_culture.length > 0) {
+      rows.push(['Culture', 'Producteurs', 'Superficie (ha)', 'Production (T)']);
+      for (const c of stats.par_culture) {
+        rows.push([c.culture, String(c.count), c.superficie.toFixed(2), c.production.toFixed(2)]);
+      }
+    }
+
+    const csvContent = rows
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+      .join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stats-${coop.nom.replace(/\s+/g, '-')}-${dateExport.replace(/\//g, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handlePrint = () => window.print();
@@ -309,6 +353,19 @@ export default function DetailCooperativePage() {
         {/* ── Tab STATISTIQUES ── */}
         {tab === 'stats' && (
           <div className="p-4 space-y-4">
+            {canExportStats && stats && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl border-[#2E7D32] text-[#2E7D32] hover:bg-[#E8F5E9] gap-1.5"
+                  onClick={handleExportStatsCSV}
+                >
+                  <FileDown className="w-4 h-4" />
+                  Exporter CSV
+                </Button>
+              </div>
+            )}
             {!stats ? (
               <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#2E7D32]" /></div>
             ) : (
