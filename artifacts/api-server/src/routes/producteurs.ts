@@ -432,6 +432,14 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
     }
   }
 
+  // Keep membre_cooperative in sync when cooperative_id changes via PATCH:
+  // - setting cooperative_id to null  → membre_cooperative becomes false
+  // - setting cooperative_id to a value → membre_cooperative becomes true
+  // (unless the caller explicitly supplied membre_cooperative themselves)
+  if (data.cooperative_id !== undefined && data.membre_cooperative === undefined) {
+    updateData.membre_cooperative = data.cooperative_id !== null;
+  }
+
   // Allow Direction / Admin to reassign the producteur to a different agent.
   // Regular agents are never allowed to change agent_id (field is not in the
   // list above and this block is guarded by the privilege check already done).
