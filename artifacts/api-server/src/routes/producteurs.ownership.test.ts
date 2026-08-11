@@ -311,6 +311,27 @@ describe("PATCH /api/producteurs/:id — ownership enforcement", () => {
 
     expect(res.status).toBe(404);
   });
+
+  // Legacy-producer policy: agent_id === null means the record pre-dates ownership
+  // tracking. Any authenticated agent is allowed to edit such a record.
+  // This is intentional for migration purposes; the policy should be re-evaluated
+  // once all legacy records have been assigned an owner.
+  it("returns 200 when an agent edits a legacy dossier (agent_id = null)", async () => {
+    // Select 1: fetch existing producteur → no owner (legacy record).
+    mocks.mockDb._pushSelectResult([{ agent_id: null }]);
+    // Select 2: fetch session user role → AGENT (not privileged).
+    mocks.mockDb._pushSelectResult([{ role: "AGENT" }]);
+    // Select 3: agent_id re-assignment branch re-fetches session user role.
+    mocks.mockDb._pushSelectResult([{ role: "AGENT" }]);
+    // Returning: the updated producteur row.
+    mocks.mockDb._pushReturningResult([MINIMAL_PRODUCTEUR]);
+
+    const res = await request(createTestApp(7))
+      .patch("/api/producteurs/10")
+      .send({ nom: "NouveauNom" });
+
+    expect(res.status).toBe(200);
+  });
 });
 
 describe("DELETE /api/producteurs/:id — ownership enforcement", () => {
@@ -379,5 +400,23 @@ describe("DELETE /api/producteurs/:id — ownership enforcement", () => {
       .delete("/api/producteurs/99999");
 
     expect(res.status).toBe(404);
+  });
+
+  // Legacy-producer policy: agent_id === null means the record pre-dates ownership
+  // tracking. Any authenticated agent is allowed to delete such a record.
+  // This is intentional for migration purposes; the policy should be re-evaluated
+  // once all legacy records have been assigned an owner.
+  it("returns 204 when an agent deletes a legacy dossier (agent_id = null)", async () => {
+    // Select 1: fetch existing producteur → no owner (legacy record).
+    mocks.mockDb._pushSelectResult([{ agent_id: null }]);
+    // Select 2: fetch session user role → AGENT (not privileged).
+    mocks.mockDb._pushSelectResult([{ role: "AGENT" }]);
+    // Select 3: the delete's own .where() (void result).
+    mocks.mockDb._pushSelectResult(undefined);
+
+    const res = await request(createTestApp(7))
+      .delete("/api/producteurs/10");
+
+    expect(res.status).toBe(204);
   });
 });
