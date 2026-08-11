@@ -86,16 +86,6 @@ export default function Login() {
           </Button>
         </form>
 
-        {/* Demo shortcuts */}
-        <div className="space-y-3 pt-2 border-t border-white/20">
-          <p className="text-center text-sm font-medium text-white/80">Accès Démo</p>
-          <div className="grid grid-cols-3 gap-2">
-            <Button variant="secondary" size="sm" onClick={() => fillDemo('admin')} type="button" className="text-xs h-10 bg-white/20 hover:bg-white/30 text-white border-white/20">Admin</Button>
-            <Button variant="secondary" size="sm" onClick={() => fillDemo('direction')} type="button" className="text-xs h-10 bg-white/20 hover:bg-white/30 text-white border-white/20">Direction</Button>
-            <Button variant="secondary" size="sm" onClick={() => fillDemo('agent')} type="button" className="text-xs h-10 bg-white/20 hover:bg-white/30 text-white border-white/20">Agent</Button>
-          </div>
-        </div>
-
         {/* Register link */}
         <div className="text-center -mt-2">
           <p className="text-white/70 text-sm">

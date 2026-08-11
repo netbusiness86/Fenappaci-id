@@ -323,6 +323,21 @@ router.post("/admin/agents/:id/reject", async (req: Request, res: Response): Pro
   res.json({ success: true, message: "Demande refusée" });
 });
 
+// DELETE /admin/agents/:id
+router.delete("/admin/agents/:id", async (req: Request, res: Response): Promise<void> => {
+  const session = req.session as any;
+  if (!session?.userId) { res.status(401).json({ error: "Non authentifié" }); return; }
+  const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, session.userId));
+  if (!me || me.role !== "ADMIN") { res.status(403).json({ error: "Accès interdit — ADMIN uniquement" }); return; }
+
+  const agentId = parseInt(req.params.id, 10);
+  if (isNaN(agentId)) { res.status(400).json({ error: "ID invalide" }); return; }
+  if (agentId === session.userId) { res.status(400).json({ error: "Impossible de supprimer votre propre compte." }); return; }
+
+  await db.delete(usersTable).where(eq(usersTable.id, agentId));
+  res.json({ success: true, message: "Compte supprimé" });
+});
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 async function requirePrivileged(req: Request, res: Response): Promise<boolean> {

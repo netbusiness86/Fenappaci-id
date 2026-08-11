@@ -16,10 +16,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   const isPrivileged = PRIVILEGED.includes(user?.role ?? '');
 
+  const isAdmin = user?.role === 'ADMIN';
+
   const tabs = [
     { name: 'Tableau', href: '/tableau-de-bord', icon: LayoutDashboard },
     { name: 'Producteurs', href: '/mes-producteurs', icon: Users },
-    { name: 'Identifier', href: '/identifier', icon: UserPlus },
+    ...(!isAdmin ? [{ name: 'Identifier', href: '/identifier', icon: UserPlus }] : []),
     { name: 'Coopérat.', href: '/cooperatives', icon: Building2 },
     { name: 'Marchés', href: '/disponibilites', icon: ShoppingBasket },
     ...(isPrivileged ? [{ name: 'National', href: '/national', icon: Globe }] : []),

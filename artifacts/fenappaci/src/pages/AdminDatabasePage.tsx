@@ -6,7 +6,7 @@ import autoTable from 'jspdf-autotable';
 import {
   FileSpreadsheet, FileText, Search, Users, Building2,
   ChevronDown, ChevronUp, AlertCircle, Loader2, ArrowLeft,
-  UserCheck, UserX, Clock, CheckCircle2, XCircle,
+  UserCheck, UserX, Clock, CheckCircle2, XCircle, Trash2,
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -247,6 +247,18 @@ export default function AdminDatabasePage() {
       toast({ title: 'Demande refusée', description: 'L\'agent a été informé du refus.' });
     },
     onError: () => toast({ title: 'Erreur', description: 'Impossible de refuser.', variant: 'destructive' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${BASE}/api/admin/agents/${id}`, { method: 'DELETE', credentials: 'include' }).then((r) => r.json()),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<AdminAgent[]>(['admin-db-agents'], (prev) =>
+        prev?.filter((a) => a.id !== id) ?? [],
+      );
+      toast({ title: 'Compte supprimé', description: 'L\'agent a été supprimé définitivement.' });
+    },
+    onError: () => toast({ title: 'Erreur', description: 'Impossible de supprimer.', variant: 'destructive' }),
   });
 
   const isLoading = tab === 'producteurs' ? loadP : tab === 'cooperatives' ? loadC : loadA;
@@ -781,8 +793,8 @@ export default function AdminDatabasePage() {
                       }`}>
                         {a.status === 'ACTIVE' ? 'Actif' : a.status === 'PENDING' ? 'En attente' : 'Refusé'}
                       </span>
-                      {a.status === 'PENDING' && (
-                        <div className="flex gap-1 mt-1.5 justify-end">
+                      <div className="flex gap-1 mt-1.5 justify-end">
+                        {a.status === 'PENDING' && (<>
                           <button
                             onClick={() => approveMutation.mutate(a.id)}
                             disabled={approveMutation.isPending}
@@ -799,8 +811,20 @@ export default function AdminDatabasePage() {
                           >
                             <UserX size={12} />
                           </button>
-                        </div>
-                      )}
+                        </>)}
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Supprimer définitivement le compte de ${a.prenoms} ${a.nom} ?`)) {
+                              deleteMutation.mutate(a.id);
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                          title="Supprimer le compte"
+                          className="p-1 rounded-full bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
