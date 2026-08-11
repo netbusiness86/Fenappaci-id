@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useGetProducteur, useDeleteProducteur } from '@workspace/api-client-react';
 import { useQuery } from '@tanstack/react-query';
@@ -29,11 +30,33 @@ import {
   Loader2,
   CreditCard,
   ShoppingCart,
+  Download,
+  Printer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
 import { useToast } from '@/hooks/use-toast';
 import { FarmsManager } from '@/components/FarmsManager';
+import { useAuth } from '@/contexts/AuthContext';
+
+/** Download an image via its signed URL by fetching it as a blob (works cross-origin). */
+async function downloadSignedImage(signedUrl: string, filename: string) {
+  try {
+    const res = await fetch(signedUrl);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    // Silently ignore — the signed URL may have expired; the user can retry.
+  }
+}
 
 interface DispoItem {
   production_id: number;
@@ -54,17 +77,29 @@ async function fetchDisposByProducteur(producteurId: string): Promise<DispoItem[
   return res.json();
 }
 
-/** Renders a photo from a signed object-storage URL with loading/error states. */
+/**
+ * Renders a photo from a signed object-storage URL with loading/error states.
+ * When `downloadFilename` is provided, shows a "Télécharger" button beneath
+ * the image once it has loaded (hidden during printing).
+ */
 function ObjectPhoto({
   objectPath,
   alt,
   className,
+  downloadFilename,
 }: {
   objectPath: string | null | undefined;
   alt: string;
   className?: string;
+  downloadFilename?: string;
 }) {
   const { signedUrl, isLoading, isError, invalidate } = useSignedPhotoUrl(objectPath);
+
+  const handleDownload = useCallback(() => {
+    if (!signedUrl || !downloadFilename) return;
+    downloadSignedImage(signedUrl, downloadFilename);
+  }, [signedUrl, downloadFilename]);
+
   if (!objectPath) return null;
   if (isLoading)
     return (
@@ -79,7 +114,21 @@ function ObjectPhoto({
         <span className="text-[10px] text-red-400">Introuvable</span>
       </div>
     );
-  return <img src={signedUrl} alt={alt} className={`object-cover ${className}`} onError={invalidate} />;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <img src={signedUrl} alt={alt} className={`object-cover ${className}`} onError={invalidate} />
+      {downloadFilename && (
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="print:hidden self-start flex items-center gap-1 text-[11px] text-[#1B5E20] font-semibold hover:underline focus:outline-none"
+        >
+          <Download className="w-3 h-3" />
+          Télécharger
+        </button>
+      )}
+    </div>
+  );
 }
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
@@ -123,13 +172,19 @@ const STATUS_CONFIG: Record<Status, { label: string; color: string; icon: React.
   },
 };
 
+const PRIVILEGED_ROLES = ['DIRECTION', 'ADMIN'] as const;
+
 export default function DetailProducteur() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: producteur, isLoading, isError } = useGetProducteur(id!);
   const deleteProducteur = useDeleteProducteur();
+
+  /** Direction and Admin can download/print sensitive documents. */
+  const isPrivileged = !!user && PRIVILEGED_ROLES.includes(user.role as typeof PRIVILEGED_ROLES[number]);
 
   const { data: dispos = [] } = useQuery<DispoItem[]>({
     queryKey: ['disponibilites', id],
@@ -165,10 +220,24 @@ export default function DetailProducteur() {
   const status = producteur.status as Status;
   const statusCfg = STATUS_CONFIG[status] ?? { label: status, color: 'bg-gray-400', icon: null };
 
+  /** Sanitised producer name used as part of download filenames. */
+  const safeName = `${producteur.nom ?? ''}_${producteur.prenoms ?? ''}`
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-ZÀ-ÿ0-9_-]/g, '');
+
   return (
+    <>
+      {/* ── Print-only styles ─────────────────────────────────────────────── */}
+      <style>{`
+        @media print {
+          @page { margin: 1.5cm; size: A4 portrait; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      `}</style>
+
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-gray-50 pb-28">
       {/* Header */}
-      <div className="bg-[#1B5E20] px-4 py-3 text-white flex items-center gap-3 sticky top-0 z-10 shadow-md">
+      <div className="print:hidden bg-[#1B5E20] px-4 py-3 text-white flex items-center gap-3 sticky top-0 z-10 shadow-md">
         <button
           type="button"
           onClick={() => setLocation('/mes-producteurs')}
@@ -230,6 +299,7 @@ export default function DetailProducteur() {
                 objectPath={producteur.photo_path}
                 alt={`${producteur.nom} ${producteur.prenoms}`}
                 className="w-28 h-36 rounded-xl border"
+                downloadFilename={isPrivileged ? `photo_${safeName}.jpg` : undefined}
               />
             ) : (
               <span className="text-xs text-gray-400 italic">Non fournie</span>
@@ -287,6 +357,7 @@ export default function DetailProducteur() {
                       objectPath={producteur.piece_recto}
                       alt="Recto pièce d'identité"
                       className="w-full rounded-xl border aspect-[3/2]"
+                      downloadFilename={isPrivileged ? `piece_recto_${safeName}.jpg` : undefined}
                     />
                   </div>
                 )}
@@ -297,6 +368,7 @@ export default function DetailProducteur() {
                       objectPath={producteur.piece_verso}
                       alt="Verso pièce d'identité"
                       className="w-full rounded-xl border aspect-[3/2]"
+                      downloadFilename={isPrivileged ? `piece_verso_${safeName}.jpg` : undefined}
                     />
                   </div>
                 )}
@@ -456,7 +528,7 @@ export default function DetailProducteur() {
       </div>
 
       {/* Fixed bottom action bar — au-dessus de la barre de navigation (bottom-16 = 64px) */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white border-t shadow-[0_-4px_10px_rgba(0,0,0,0.06)] p-4 z-30 flex gap-3">
+      <div className="print:hidden fixed bottom-16 left-0 right-0 bg-white border-t shadow-[0_-4px_10px_rgba(0,0,0,0.06)] p-4 z-30 flex gap-3">
         {/* Supprimer */}
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -513,6 +585,18 @@ export default function DetailProducteur() {
           Carte
         </Button>
 
+        {/* Imprimer — Direction / Admin uniquement */}
+        {isPrivileged && (
+          <Button
+            variant="outline"
+            className="h-14 px-4 border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl flex items-center gap-2 shrink-0"
+            onClick={() => window.print()}
+          >
+            <Printer className="w-5 h-5" />
+            Imprimer
+          </Button>
+        )}
+
         {/* Modifier */}
         <Button
           className="flex-1 h-14 text-base bg-[#F57C00] hover:bg-[#E65100] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2"
@@ -523,5 +607,6 @@ export default function DetailProducteur() {
         </Button>
       </div>
     </div>
+    </>
   );
 }
