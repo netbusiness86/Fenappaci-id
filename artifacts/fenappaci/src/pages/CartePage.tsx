@@ -4,7 +4,7 @@ import { useGetProducteur } from '@workspace/api-client-react';
 import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
 import CarteProducteur, { CARTE_W, CARTE_H } from '@/components/CarteProducteur';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Printer, CreditCard, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Download, Printer, CreditCard, Loader2, AlertTriangle, Share2, Copy, Check } from 'lucide-react';
 
 export default function CartePage() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +13,7 @@ export default function CartePage() {
   // Ref sur la carte hors-écran (taille réelle) — c'est elle qu'html2canvas capture
   const captureRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Échelle de la carte visible (adaptée à la largeur mobile)
   const [scale, setScale] = useState(1);
@@ -66,6 +67,35 @@ export default function CartePage() {
       console.error('PDF error:', e);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // ── Partage (Web Share API) ──────────────────────────────────────────────
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  const handleShare = async () => {
+    if (canShare) {
+      try {
+        await navigator.share({
+          title: `Carte producteur — ${producteur?.nom} ${producteur?.prenoms}`,
+          text: `Fiche FENAPPACI de ${producteur?.nom} ${producteur?.prenoms} (${producteur?.numero_membre})`,
+          url: qrUrl,
+        });
+      } catch (e) {
+        // L'utilisateur a annulé ou le partage a échoué — on n'affiche rien
+        if ((e as DOMException).name !== 'AbortError') {
+          console.error('Share error:', e);
+        }
+      }
+    } else {
+      // Fallback desktop : copier le lien
+      try {
+        await navigator.clipboard.writeText(qrUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (e) {
+        console.error('Clipboard error:', e);
+      }
     }
   };
 
@@ -211,6 +241,29 @@ export default function CartePage() {
             >
               <Printer className="w-5 h-5" />
               Imprimer
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full h-14 border-[#1565C0] text-[#1565C0] font-bold rounded-xl text-base flex items-center gap-2 hover:bg-[#E3F2FD]"
+              onClick={handleShare}
+            >
+              {canShare ? (
+                <>
+                  <Share2 className="w-5 h-5" />
+                  Partager (WhatsApp / SMS…)
+                </>
+              ) : copied ? (
+                <>
+                  <Check className="w-5 h-5 text-green-600" />
+                  <span className="text-green-600">Lien copié !</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-5 h-5" />
+                  Copier le lien
+                </>
+              )}
             </Button>
           </div>
 
