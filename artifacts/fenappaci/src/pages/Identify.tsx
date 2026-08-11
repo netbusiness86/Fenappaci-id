@@ -133,12 +133,20 @@ function draftKey(userId: string | number): string {
 
 // Photo fields store GCS object paths, not base64, but we still exclude them
 // to keep drafts lightweight and avoid any quota issues.
-type DraftPayload = Omit<FormData, 'photo_path' | 'piece_recto' | 'piece_verso'>;
+// `savedStep` stores the numeric step (1–6) so the user resumes where they left off.
+type DraftPayload = Omit<FormData, 'photo_path' | 'piece_recto' | 'piece_verso'> & {
+  savedStep?: 1 | 2 | 3 | 4 | 5 | 6;
+};
 
-function saveDraft(key: string, data: FormData) {
+function saveDraft(key: string, data: FormData, currentStep: Step) {
   const { photo_path: _p, piece_recto: _r, piece_verso: _v, ...rest } = data;
+  const payload: DraftPayload = {
+    ...rest,
+    // Only persist numeric steps (not 'summary' / 'success')
+    ...(typeof currentStep === 'number' ? { savedStep: currentStep as 1 | 2 | 3 | 4 | 5 | 6 } : {}),
+  };
   try {
-    localStorage.setItem(key, JSON.stringify(rest));
+    localStorage.setItem(key, JSON.stringify(payload));
   } catch {
     // localStorage full or unavailable — silent fallback
   }
@@ -200,7 +208,7 @@ export default function Identify() {
     if (!DRAFT_KEY) return;
     if (step === 'success') return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => saveDraft(DRAFT_KEY, formData), 1000);
+    saveTimerRef.current = setTimeout(() => saveDraft(DRAFT_KEY, formData, step), 1000);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
@@ -209,7 +217,14 @@ export default function Identify() {
   const handleRestoreDraft = () => {
     if (!DRAFT_KEY) return;
     const draft = loadDraft(DRAFT_KEY);
-    if (draft) setFormData(prev => ({ ...prev, ...draft }));
+    if (draft) {
+      const { savedStep, ...formFields } = draft;
+      setFormData(prev => ({ ...prev, ...formFields }));
+      if (savedStep) {
+        setDirection(1);
+        setStep(savedStep);
+      }
+    }
     setShowDraftBanner(false);
   };
 
