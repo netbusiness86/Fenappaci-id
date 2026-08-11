@@ -164,7 +164,16 @@ router.get("/producteurs", async (req: Request, res: Response): Promise<void> =>
 
   const { search, region, status } = parsed.data;
 
+  const session = req.session as any;
+  const sessionUserId = session?.userId as number | undefined;
+  const sessionRole = session?.role as string | undefined;
+
   let rows = await db.select().from(producteursTable).orderBy(desc(producteursTable.created_at));
+
+  // AGENT : uniquement ses propres producteurs
+  if (sessionRole === 'AGENT' && sessionUserId) {
+    rows = rows.filter((p) => p.agent_id === sessionUserId);
+  }
 
   if (search) {
     const s = search.toLowerCase();
@@ -323,6 +332,15 @@ router.get("/producteurs/:id", async (req: Request, res: Response): Promise<void
 
   if (!p) {
     res.status(404).json({ error: "Producteur non trouvé" });
+    return;
+  }
+
+  // AGENT : vérifier que ce producteur lui appartient
+  const session = req.session as any;
+  const sessionUserId = session?.userId as number | undefined;
+  const sessionRole = session?.role as string | undefined;
+  if (sessionRole === 'AGENT' && sessionUserId && p.agent_id !== sessionUserId) {
+    res.status(403).json({ error: "Accès refusé — ce producteur ne vous est pas assigné." });
     return;
   }
 

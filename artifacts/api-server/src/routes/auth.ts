@@ -45,6 +45,7 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
   }
 
   req.session.userId = user.id;
+  (req.session as any).role = user.role;
   res.json(LoginResponse.parse(serializeUser(user)));
 });
 

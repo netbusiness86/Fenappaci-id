@@ -30,10 +30,27 @@ async function memberCount(id: number): Promise<number> {
 // ── GET /cooperatives ────────────────────────────────────────────────────────
 router.get("/cooperatives", async (req: Request, res: Response): Promise<void> => {
   const { search, region } = req.query as Record<string, string>;
+  const session = req.session as any;
+  const sessionUserId = session?.userId as number | undefined;
+  const sessionRole = session?.role as string | undefined;
 
   const conditions = [];
   if (search) conditions.push(ilike(cooperativesTable.nom, `%${search}%`));
   if (region) conditions.push(ilike(cooperativesTable.region, `%${region}%`));
+
+  // AGENT : restreindre aux coopératives contenant au moins un de ses producteurs
+  if (sessionRole === 'AGENT' && sessionUserId) {
+    const agentCoopRows = await db
+      .selectDistinct({ cooperative_id: producteursTable.cooperative_id })
+      .from(producteursTable)
+      .where(and(eq(producteursTable.agent_id, sessionUserId), isNotNull(producteursTable.cooperative_id)));
+    const agentCoopIds = agentCoopRows.map((r) => r.cooperative_id).filter((id): id is number => id != null);
+    if (agentCoopIds.length === 0) {
+      res.json(ListCooperativesResponse.parse([]));
+      return;
+    }
+    conditions.push(sql`${cooperativesTable.id} = ANY(ARRAY[${sql.join(agentCoopIds.map((id) => sql`${id}`), sql`, `)}]::int[])`);
+  }
 
   const rows = await db
     .select()
@@ -41,16 +58,23 @@ router.get("/cooperatives", async (req: Request, res: Response): Promise<void> =
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(cooperativesTable.nom);
 
-  const counts = await db
-    .select({
-      cooperative_id: producteursTable.cooperative_id,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(producteursTable)
-    .where(isNotNull(producteursTable.cooperative_id))
-    .groupBy(producteursTable.cooperative_id);
-
-  const countMap = new Map(counts.map((c) => [c.cooperative_id, c.count]));
+  // Pour les AGENT : compte uniquement leurs propres membres dans chaque coopérative
+  let countMap: Map<number | null, number>;
+  if (sessionRole === 'AGENT' && sessionUserId) {
+    const counts = await db
+      .select({ cooperative_id: producteursTable.cooperative_id, count: sql<number>`count(*)::int` })
+      .from(producteursTable)
+      .where(and(isNotNull(producteursTable.cooperative_id), eq(producteursTable.agent_id, sessionUserId)))
+      .groupBy(producteursTable.cooperative_id);
+    countMap = new Map(counts.map((c) => [c.cooperative_id, c.count]));
+  } else {
+    const counts = await db
+      .select({ cooperative_id: producteursTable.cooperative_id, count: sql<number>`count(*)::int` })
+      .from(producteursTable)
+      .where(isNotNull(producteursTable.cooperative_id))
+      .groupBy(producteursTable.cooperative_id);
+    countMap = new Map(counts.map((c) => [c.cooperative_id, c.count]));
+  }
 
   const result = rows.map((c) => ({
     id: c.id,
@@ -107,6 +131,22 @@ router.post("/cooperatives", async (req: Request, res: Response): Promise<void> 
 router.get("/cooperatives/:id", async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  // AGENT : vérifier qu'il a au moins un producteur dans cette coopérative
+  const session = req.session as any;
+  const sessionUserId = session?.userId as number | undefined;
+  const sessionRole = session?.role as string | undefined;
+  if (sessionRole === 'AGENT' && sessionUserId) {
+    const [check] = await db
+      .select({ id: producteursTable.id })
+      .from(producteursTable)
+      .where(and(eq(producteursTable.cooperative_id, id), eq(producteursTable.agent_id, sessionUserId)))
+      .limit(1);
+    if (!check) {
+      res.status(403).json({ error: "Accès refusé — aucun de vos producteurs n'appartient à cette coopérative." });
+      return;
+    }
+  }
 
   const [coop] = await db.select().from(cooperativesTable).where(eq(cooperativesTable.id, id));
   if (!coop) { res.status(404).json({ error: "Coopérative introuvable" }); return; }
@@ -191,6 +231,16 @@ router.get("/cooperatives/:id/membres", async (req: Request, res: Response): Pro
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
 
+  const session2 = req.session as any;
+  const sessionUserId2 = session2?.userId as number | undefined;
+  const sessionRole2 = session2?.role as string | undefined;
+
+  const membresConditions: any[] = [eq(producteursTable.cooperative_id, id)];
+  // AGENT : ne voir que ses propres membres dans cette coopérative
+  if (sessionRole2 === 'AGENT' && sessionUserId2) {
+    membresConditions.push(eq(producteursTable.agent_id, sessionUserId2));
+  }
+
   const membres = await db
     .select({
       id: producteursTable.id,
@@ -205,7 +255,7 @@ router.get("/cooperatives/:id/membres", async (req: Request, res: Response): Pro
       cooperative_fonction: producteursTable.cooperative_fonction,
     })
     .from(producteursTable)
-    .where(eq(producteursTable.cooperative_id, id))
+    .where(and(...membresConditions))
     .orderBy(producteursTable.nom);
 
   res.json(GetCooperativeMembresResponse.parse(membres));
