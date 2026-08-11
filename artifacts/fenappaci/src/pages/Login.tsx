@@ -96,6 +96,16 @@ export default function Login() {
           </div>
         </div>
 
+        {/* Register link */}
+        <div className="text-center -mt-2">
+          <p className="text-white/70 text-sm">
+            Pas encore de compte ?{' '}
+            <a href="/enregistrement" className="text-[#81C784] font-semibold hover:text-white underline underline-offset-2 transition-colors">
+              S'enregistrer
+            </a>
+          </p>
+        </div>
+
         <p className="text-center text-xs text-white/40 pb-4">
           <a href="https://fenappaci.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">
             fenappaci.com

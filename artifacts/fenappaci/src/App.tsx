@@ -30,6 +30,7 @@ import DetailCooperativePage from '@/pages/DetailCooperativePage';
 import EditCooperativePage from '@/pages/EditCooperativePage';
 import NationalDashboard from '@/pages/NationalDashboard';
 import AdminDatabasePage from '@/pages/AdminDatabasePage';
+import RegisterPage from '@/pages/RegisterPage';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ function Router() {
         <Switch>
           <Route path="/" component={RootRedirect} />
           <Route path="/login" component={Login} />
+          <Route path="/enregistrement" component={RegisterPage} />
           
           {/* Protected Routes */}
           <Route path="/tableau-de-bord">

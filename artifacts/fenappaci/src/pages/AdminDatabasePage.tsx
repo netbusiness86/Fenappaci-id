@@ -1,13 +1,15 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
   FileSpreadsheet, FileText, Search, Users, Building2,
   ChevronDown, ChevronUp, AlertCircle, Loader2, ArrowLeft,
+  UserCheck, UserX, Clock, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { Link } from 'wouter';
+import { useToast } from '@/hooks/use-toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,8 +56,22 @@ interface AdminCooperative {
   quantite_disponible: number;
 }
 
+interface AdminAgent {
+  id: number;
+  nom: string;
+  prenoms: string;
+  email: string;
+  role: string;
+  status: 'PENDING' | 'ACTIVE' | 'REJECTED';
+  telephone: string | null;
+  region: string | null;
+  departement: string | null;
+  sous_prefecture: string | null;
+  created_at: string;
+}
+
 type GroupBy = 'none' | 'region' | 'culture' | 'cooperative' | 'status';
-type ActiveTab = 'producteurs' | 'cooperatives';
+type ActiveTab = 'producteurs' | 'cooperatives' | 'agents';
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
@@ -177,9 +193,12 @@ export default function AdminDatabasePage() {
   const [filterRegion, setFilterRegion] = useState('');
   const [filterCulture, setFilterCulture] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterAgentStatus, setFilterAgentStatus] = useState('');
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState<'xlsx' | 'pdf' | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -195,8 +214,43 @@ export default function AdminDatabasePage() {
     retry: false,
   });
 
-  const isLoading = tab === 'producteurs' ? loadP : loadC;
-  const error = tab === 'producteurs' ? errP : errC;
+  const { data: agents = [], isLoading: loadA, error: errA } = useQuery<AdminAgent[]>({
+    queryKey: ['admin-db-agents'],
+    queryFn: () => fetchAdmin('/api/admin/agents'),
+    retry: false,
+    refetchInterval: tab === 'agents' ? 30000 : false,
+  });
+
+  const pendingCount = agents.filter((a) => a.status === 'PENDING').length;
+
+  // ── Agent mutations ────────────────────────────────────────────────────────
+
+  const approveMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${BASE}/api/admin/agents/${id}/approve`, { method: 'POST', credentials: 'include' }).then((r) => r.json()),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<AdminAgent[]>(['admin-db-agents'], (prev) =>
+        prev?.map((a) => (a.id === id ? { ...a, status: 'ACTIVE' } : a)) ?? [],
+      );
+      toast({ title: 'Compte approuvé', description: 'L\'agent peut maintenant se connecter.' });
+    },
+    onError: () => toast({ title: 'Erreur', description: 'Impossible d\'approuver.', variant: 'destructive' }),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${BASE}/api/admin/agents/${id}/reject`, { method: 'POST', credentials: 'include' }).then((r) => r.json()),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<AdminAgent[]>(['admin-db-agents'], (prev) =>
+        prev?.map((a) => (a.id === id ? { ...a, status: 'REJECTED' } : a)) ?? [],
+      );
+      toast({ title: 'Demande refusée', description: 'L\'agent a été informé du refus.' });
+    },
+    onError: () => toast({ title: 'Erreur', description: 'Impossible de refuser.', variant: 'destructive' }),
+  });
+
+  const isLoading = tab === 'producteurs' ? loadP : tab === 'cooperatives' ? loadC : loadA;
+  const error = tab === 'producteurs' ? errP : tab === 'cooperatives' ? errC : errA;
   const cols = tab === 'producteurs' ? PROD_COLS : COOP_COLS;
 
   // ── Filter options derived from data ──────────────────────────────────────
@@ -254,7 +308,27 @@ export default function AdminDatabasePage() {
     return rows;
   }, [cooperatives, search, filterRegion]);
 
-  const filtered = (tab === 'producteurs' ? filteredP : filteredC) as Record<string, unknown>[];
+  // ── Filtered agents ───────────────────────────────────────────────────────
+
+  const filteredA = useMemo(() => {
+    let rows = agents;
+    if (search) {
+      const s = search.toLowerCase();
+      rows = rows.filter(
+        (a) =>
+          a.nom.toLowerCase().includes(s) ||
+          a.prenoms.toLowerCase().includes(s) ||
+          a.email.toLowerCase().includes(s) ||
+          (a.region ?? '').toLowerCase().includes(s),
+      );
+    }
+    if (filterAgentStatus) rows = rows.filter((a) => a.status === filterAgentStatus);
+    return rows;
+  }, [agents, search, filterAgentStatus]);
+
+  const pendingAgents = filteredA.filter((a) => a.status === 'PENDING');
+
+  const filtered = (tab === 'producteurs' ? filteredP : tab === 'cooperatives' ? filteredC : filteredA) as Record<string, unknown>[];
 
   // ── Grouping ──────────────────────────────────────────────────────────────
 
@@ -281,7 +355,7 @@ export default function AdminDatabasePage() {
         { label: 'Hommes', value: String(hommes), sub: `${filteredP.length ? Math.round((hommes / filteredP.length) * 100) : 0}%` },
         { label: 'Femmes', value: String(femmes), sub: `${filteredP.length ? Math.round((femmes / filteredP.length) * 100) : 0}%` },
       ];
-    } else {
+    } else if (tab === 'cooperatives') {
       const membres = filteredC.reduce((s, c) => s + c.nombre_membres, 0);
       const prod = filteredC.reduce((s, c) => s + c.production_totale, 0);
       const dispo = filteredC.reduce((s, c) => s + c.quantite_disponible, 0);
@@ -291,8 +365,18 @@ export default function AdminDatabasePage() {
         { label: 'Production', value: `${prod.toFixed(1)} T` },
         { label: 'Disponible', value: `${dispo.toFixed(1)} T` },
       ];
+    } else {
+      const active = agents.filter((a) => a.status === 'ACTIVE').length;
+      const pending = agents.filter((a) => a.status === 'PENDING').length;
+      const rejected = agents.filter((a) => a.status === 'REJECTED').length;
+      return [
+        { label: 'Total agents', value: String(agents.length) },
+        { label: 'Actifs', value: String(active) },
+        { label: 'En attente', value: String(pending), sub: pending > 0 ? '⚠ validation requise' : undefined },
+        { label: 'Refusés', value: String(rejected) },
+      ];
     }
-  }, [filteredP, filteredC, tab]);
+  }, [filteredP, filteredC, agents, tab]);
 
   // ── Toggle group collapse ─────────────────────────────────────────────────
 
@@ -312,6 +396,7 @@ export default function AdminDatabasePage() {
     setFilterRegion('');
     setFilterCulture('');
     setFilterStatus('');
+    setFilterAgentStatus('');
     setGroupBy('none');
     setCollapsed(new Set());
   };
@@ -466,45 +551,54 @@ export default function AdminDatabasePage() {
               <p className="text-[11px] text-green-200">Espace ADMIN — {filtered.length} enregistrement{filtered.length > 1 ? 's' : ''}</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={exportXLSX}
-              disabled={!!exporting || filtered.length === 0}
-              title="Exporter Excel"
-              className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-            >
-              {exporting === 'xlsx' ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
-              <span>Excel</span>
-            </button>
-            <button
-              onClick={exportPDF}
-              disabled={!!exporting || filtered.length === 0}
-              title="Exporter PDF"
-              className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-            >
-              {exporting === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-              <span>PDF</span>
-            </button>
-          </div>
+          {tab !== 'agents' && (
+            <div className="flex gap-2">
+              <button
+                onClick={exportXLSX}
+                disabled={!!exporting || filtered.length === 0}
+                title="Exporter Excel"
+                className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                {exporting === 'xlsx' ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+                <span>Excel</span>
+              </button>
+              <button
+                onClick={exportPDF}
+                disabled={!!exporting || filtered.length === 0}
+                title="Exporter PDF"
+                className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                {exporting === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                <span>PDF</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="px-3 py-3 space-y-3 max-w-screen-xl mx-auto">
         {/* ── Tabs ── */}
         <div className="flex bg-white rounded-lg border border-gray-200 p-1 gap-1">
-          {(['producteurs', 'cooperatives'] as ActiveTab[]).map((t) => (
+          {([
+            { id: 'producteurs', label: 'Producteurs', icon: <Users size={15} />, count: producteurs.length },
+            { id: 'cooperatives', label: 'Coopératives', icon: <Building2 size={15} />, count: cooperatives.length },
+            { id: 'agents', label: 'Agents', icon: <UserCheck size={15} />, count: agents.length, badge: pendingCount },
+          ] as { id: ActiveTab; label: string; icon: React.ReactNode; count: number; badge?: number }[]).map((t) => (
             <button
-              key={t}
-              onClick={() => switchTab(t)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
-                tab === t ? 'bg-[#1B5E20] text-white' : 'text-gray-600 hover:bg-gray-50'
+              key={t.id}
+              onClick={() => switchTab(t.id)}
+              className={`flex-1 relative flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-colors ${
+                tab === t.id ? 'bg-[#1B5E20] text-white' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              {t === 'producteurs' ? <Users size={15} /> : <Building2 size={15} />}
-              {t === 'producteurs' ? 'Producteurs' : 'Coopératives'}
-              <span className={`text-xs ${tab === t ? 'text-green-200' : 'text-gray-400'}`}>
-                ({t === 'producteurs' ? producteurs.length : cooperatives.length})
-              </span>
+              {t.icon}
+              <span className="hidden sm:inline">{t.label}</span>
+              <span className={`text-[10px] ${tab === t.id ? 'text-green-200' : 'text-gray-400'}`}>({t.count})</span>
+              {t.badge != null && t.badge > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  {t.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -515,50 +609,68 @@ export default function AdminDatabasePage() {
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder={`Rechercher un${tab === 'producteurs' ? ' producteur' : 'e coopérative'}…`}
+              placeholder={
+                tab === 'producteurs' ? 'Rechercher un producteur…' :
+                tab === 'cooperatives' ? 'Rechercher une coopérative…' :
+                'Rechercher un agent…'
+              }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
-          <div className={`grid gap-2 ${tab === 'producteurs' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
+
+          {tab === 'agents' ? (
             <select
-              value={filterRegion}
-              onChange={(e) => setFilterRegion(e.target.value)}
-              className="border border-gray-200 rounded-md text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              value={filterAgentStatus}
+              onChange={(e) => setFilterAgentStatus(e.target.value)}
+              className="w-full border border-gray-200 rounded-md text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
             >
-              <option value="">Toutes régions</option>
-              {allRegions.map((r) => <option key={r} value={r}>{r}</option>)}
+              <option value="">Tous les statuts</option>
+              <option value="PENDING">En attente de validation</option>
+              <option value="ACTIVE">Actifs</option>
+              <option value="REJECTED">Refusés</option>
             </select>
-            {tab === 'producteurs' && (
+          ) : (
+            <div className={`grid gap-2 ${tab === 'producteurs' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
               <select
-                value={filterCulture}
-                onChange={(e) => setFilterCulture(e.target.value)}
+                value={filterRegion}
+                onChange={(e) => setFilterRegion(e.target.value)}
                 className="border border-gray-200 rounded-md text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
               >
-                <option value="">Toutes cultures</option>
-                {allCultures.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="">Toutes régions</option>
+                {allRegions.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-            )}
-            {tab === 'producteurs' && (
+              {tab === 'producteurs' && (
+                <select
+                  value={filterCulture}
+                  onChange={(e) => setFilterCulture(e.target.value)}
+                  className="border border-gray-200 rounded-md text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                >
+                  <option value="">Toutes cultures</option>
+                  {allCultures.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
+              {tab === 'producteurs' && (
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="border border-gray-200 rounded-md text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                >
+                  <option value="">Tous statuts</option>
+                  <option value="ACTIF">Actif</option>
+                  <option value="INACTIF">Inactif</option>
+                </select>
+              )}
               <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                value={groupBy}
+                onChange={(e) => { setGroupBy(e.target.value as GroupBy); setCollapsed(new Set()); }}
                 className="border border-gray-200 rounded-md text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
               >
-                <option value="">Tous statuts</option>
-                <option value="ACTIF">Actif</option>
-                <option value="INACTIF">Inactif</option>
+                {groupByOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-            )}
-            <select
-              value={groupBy}
-              onChange={(e) => { setGroupBy(e.target.value as GroupBy); setCollapsed(new Set()); }}
-              className="border border-gray-200 rounded-md text-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-            >
-              {groupByOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* ── Stats ── */}
@@ -579,6 +691,123 @@ export default function AdminDatabasePage() {
             <p className="text-sm font-medium">Accès interdit ou erreur serveur</p>
             <p className="text-xs text-red-400">Cette page est réservée aux rôles ADMIN et DIRECTION.</p>
           </div>
+
+        ) : tab === 'agents' ? (
+          /* ── AGENTS TAB ───────────────────────────────────────────────── */
+          <div className="space-y-4">
+            {/* Pending agents — action cards */}
+            {pendingAgents.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <Clock size={14} className="text-amber-500" />
+                  <p className="text-sm font-semibold text-amber-700">
+                    {pendingAgents.length} demande{pendingAgents.length > 1 ? 's' : ''} en attente de validation
+                  </p>
+                </div>
+                {pendingAgents.map((a) => (
+                  <div key={a.id} className="bg-white border-2 border-amber-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-900 text-sm">{a.prenoms} {a.nom}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{a.email}</p>
+                        {a.telephone && <p className="text-xs text-gray-500">{a.telephone}</p>}
+                      </div>
+                      <span className="flex-shrink-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                        En attente
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                      {a.region && <span className="bg-gray-100 px-2 py-0.5 rounded">📍 {a.region}</span>}
+                      {a.departement && <span className="bg-gray-100 px-2 py-0.5 rounded">{a.departement}</span>}
+                      {a.sous_prefecture && <span className="bg-gray-100 px-2 py-0.5 rounded">{a.sous_prefecture}</span>}
+                      <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-400">
+                        Inscrit le {new Date(a.created_at).toLocaleDateString('fr-FR')}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => approveMutation.mutate(a.id)}
+                        disabled={approveMutation.isPending || rejectMutation.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors"
+                      >
+                        {approveMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                        Approuver
+                      </button>
+                      <button
+                        onClick={() => rejectMutation.mutate(a.id)}
+                        disabled={approveMutation.isPending || rejectMutation.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 disabled:opacity-50 text-red-600 border border-red-200 text-sm font-semibold py-2.5 rounded-lg transition-colors"
+                      >
+                        {rejectMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                        Refuser
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* All agents table */}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  Tous les agents ({filteredA.length})
+                </p>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {filteredA.length === 0 ? (
+                  <p className="text-center text-gray-400 text-sm py-8">Aucun agent trouvé</p>
+                ) : filteredA.map((a) => (
+                  <div key={a.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold text-green-700">
+                        {a.prenoms[0]}{a.nom[0]}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{a.prenoms} {a.nom}</p>
+                      <p className="text-xs text-gray-500 truncate">{a.email}</p>
+                      {(a.region || a.departement) && (
+                        <p className="text-xs text-gray-400 truncate">
+                          {[a.region, a.departement, a.sous_prefecture].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        a.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                        a.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-600'
+                      }`}>
+                        {a.status === 'ACTIVE' ? 'Actif' : a.status === 'PENDING' ? 'En attente' : 'Refusé'}
+                      </span>
+                      {a.status === 'PENDING' && (
+                        <div className="flex gap-1 mt-1.5 justify-end">
+                          <button
+                            onClick={() => approveMutation.mutate(a.id)}
+                            disabled={approveMutation.isPending}
+                            title="Approuver"
+                            className="p-1 rounded-full bg-green-100 hover:bg-green-200 text-green-700 transition-colors disabled:opacity-50"
+                          >
+                            <UserCheck size={12} />
+                          </button>
+                          <button
+                            onClick={() => rejectMutation.mutate(a.id)}
+                            disabled={rejectMutation.isPending}
+                            title="Refuser"
+                            className="p-1 rounded-full bg-red-100 hover:bg-red-200 text-red-600 transition-colors disabled:opacity-50"
+                          >
+                            <UserX size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 bg-white rounded-lg border border-gray-200 text-gray-400 gap-2">
             <AlertCircle size={28} />
@@ -588,7 +817,6 @@ export default function AdminDatabasePage() {
           <div className="space-y-2">
             {[...groups.entries()].map(([gkey, rows]) => (
               <div key={gkey} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                {/* Group header */}
                 {groupBy !== 'none' && (
                   <button
                     onClick={() => toggleGroup(gkey)}
@@ -603,7 +831,6 @@ export default function AdminDatabasePage() {
                       : <ChevronUp size={15} className="text-green-700 flex-shrink-0" />}
                   </button>
                 )}
-
                 {!collapsed.has(gkey) && (
                   <div className="overflow-x-auto">
                     <table className="text-xs border-collapse" style={{ minWidth: 'max-content', width: '100%' }}>
@@ -611,9 +838,7 @@ export default function AdminDatabasePage() {
                         <tr className="bg-gray-50 border-b border-gray-200">
                           <th className="px-3 py-2 text-left font-semibold text-gray-500 sticky left-0 bg-gray-50 z-10 border-r border-gray-100 w-8">#</th>
                           {cols.map((c) => (
-                            <th key={c.key} className="px-3 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">
-                              {c.label}
-                            </th>
+                            <th key={c.key} className="px-3 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">{c.label}</th>
                           ))}
                         </tr>
                       </thead>
@@ -622,12 +847,7 @@ export default function AdminDatabasePage() {
                           const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
                           return (
                             <tr key={row.id as number}>
-                              <td
-                                className="px-3 py-1.5 text-gray-400 sticky left-0 border-r border-gray-100 z-10 w-8"
-                                style={{ background: bg }}
-                              >
-                                {i + 1}
-                              </td>
+                              <td className="px-3 py-1.5 text-gray-400 sticky left-0 border-r border-gray-100 z-10 w-8" style={{ background: bg }}>{i + 1}</td>
                               {cols.map((c) => {
                                 const val = cellValue(row, c.key);
                                 return (
@@ -635,9 +855,7 @@ export default function AdminDatabasePage() {
                                     key={c.key}
                                     className={`px-3 py-1.5 whitespace-nowrap ${
                                       c.key === 'status'
-                                        ? row.status === 'ACTIF'
-                                          ? 'text-green-700 font-medium'
-                                          : 'text-red-500 font-medium'
+                                        ? row.status === 'ACTIF' ? 'text-green-700 font-medium' : 'text-red-500 font-medium'
                                         : 'text-gray-700'
                                     }`}
                                     style={{ background: bg }}

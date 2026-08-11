@@ -9,6 +9,9 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("AGENT"),
+  /** PENDING = awaiting admin approval, ACTIVE = can log in, REJECTED = denied */
+  status: text("status").notNull().default("ACTIVE"),
+  telephone: text("telephone"),
   region: text("region"),
   departement: text("departement"),
   sous_prefecture: text("sous_prefecture"),

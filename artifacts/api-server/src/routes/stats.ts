@@ -265,6 +265,64 @@ router.get("/exports/:type", async (req: Request, res: Response): Promise<void> 
   res.status(404).json({ error: "Type d'export inconnu" });
 });
 
+// ── Admin agents ──────────────────────────────────────────────────────────────
+
+// GET /admin/agents
+router.get("/admin/agents", async (req: Request, res: Response): Promise<void> => {
+  const session = req.session as any;
+  if (!session?.userId) { res.status(401).json({ error: "Non authentifié" }); return; }
+  const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, session.userId));
+  if (!me || !["ADMIN", "DIRECTION"].includes(me.role)) { res.status(403).json({ error: "Accès interdit" }); return; }
+
+  const { status } = req.query as Record<string, string>;
+  let agents = await db.select().from(usersTable).orderBy(desc(usersTable.created_at));
+  if (status) agents = agents.filter((a) => (a as any).status === status);
+
+  const result = agents.map((a) => ({
+    id: a.id,
+    nom: a.nom,
+    prenoms: a.prenoms,
+    email: a.email,
+    role: a.role,
+    status: (a as any).status ?? "ACTIVE",
+    telephone: (a as any).telephone ?? null,
+    region: a.region ?? null,
+    departement: a.departement ?? null,
+    sous_prefecture: a.sous_prefecture ?? null,
+    created_at: a.created_at.toISOString(),
+  }));
+
+  res.json(result);
+});
+
+// POST /admin/agents/:id/approve
+router.post("/admin/agents/:id/approve", async (req: Request, res: Response): Promise<void> => {
+  const session = req.session as any;
+  if (!session?.userId) { res.status(401).json({ error: "Non authentifié" }); return; }
+  const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, session.userId));
+  if (!me || me.role !== "ADMIN") { res.status(403).json({ error: "Accès interdit — ADMIN uniquement" }); return; }
+
+  const agentId = parseInt(req.params.id, 10);
+  if (isNaN(agentId)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  await (db.update(usersTable) as any).set({ status: "ACTIVE" }).where(eq(usersTable.id, agentId));
+  res.json({ success: true, message: "Compte approuvé" });
+});
+
+// POST /admin/agents/:id/reject
+router.post("/admin/agents/:id/reject", async (req: Request, res: Response): Promise<void> => {
+  const session = req.session as any;
+  if (!session?.userId) { res.status(401).json({ error: "Non authentifié" }); return; }
+  const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, session.userId));
+  if (!me || me.role !== "ADMIN") { res.status(403).json({ error: "Accès interdit — ADMIN uniquement" }); return; }
+
+  const agentId = parseInt(req.params.id, 10);
+  if (isNaN(agentId)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  await (db.update(usersTable) as any).set({ status: "REJECTED" }).where(eq(usersTable.id, agentId));
+  res.json({ success: true, message: "Demande refusée" });
+});
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 async function requirePrivileged(req: Request, res: Response): Promise<boolean> {
