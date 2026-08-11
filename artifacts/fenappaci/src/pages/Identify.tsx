@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCreateProducteur, Producteur } from '@workspace/api-client-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -123,24 +124,29 @@ const variants = {
 };
 
 // ── Draft persistence helpers ────────────────────────────────────────────────
-const DRAFT_KEY = 'fenappaci_identify_draft';
+const DRAFT_KEY_BASE = 'fenappaci_identify_draft';
+
+/** Returns a user-scoped localStorage key so drafts never leak between agents. */
+function draftKey(userId: string | number): string {
+  return `${DRAFT_KEY_BASE}_${userId}`;
+}
 
 // Photo fields store GCS object paths, not base64, but we still exclude them
 // to keep drafts lightweight and avoid any quota issues.
 type DraftPayload = Omit<FormData, 'photo_path' | 'piece_recto' | 'piece_verso'>;
 
-function saveDraft(data: FormData) {
+function saveDraft(key: string, data: FormData) {
   const { photo_path: _p, piece_recto: _r, piece_verso: _v, ...rest } = data;
   try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(rest));
+    localStorage.setItem(key, JSON.stringify(rest));
   } catch {
     // localStorage full or unavailable — silent fallback
   }
 }
 
-function loadDraft(): DraftPayload | null {
+function loadDraft(key: string): DraftPayload | null {
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     return JSON.parse(raw) as DraftPayload;
   } catch {
@@ -148,8 +154,8 @@ function loadDraft(): DraftPayload | null {
   }
 }
 
-function clearDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
+function clearDraft(key: string) {
+  try { localStorage.removeItem(key); } catch { /* noop */ }
 }
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -163,6 +169,11 @@ export default function Identify() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const createProducteur = useCreateProducteur();
+  const { user } = useAuth();
+
+  // Scoped draft key — includes the logged-in user's ID so drafts never
+  // bleed across agents on shared devices.
+  const DRAFT_KEY = user ? draftKey(user.id) : null;
   
   const [formData, setFormData] = useState<FormData>(initialState);
   const [step, setStep] = useState<Step>(1);
@@ -175,32 +186,35 @@ export default function Identify() {
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // On mount: detect existing draft
+  // On mount (or once user is known): detect existing draft for this user
   useEffect(() => {
-    const draft = loadDraft();
+    if (!DRAFT_KEY) return;
+    const draft = loadDraft(DRAFT_KEY);
     if (draft && (draft.nom || draft.prenoms || draft.telephone || draft.village)) {
       setShowDraftBanner(true);
     }
-  }, []);
+  }, [DRAFT_KEY]);
 
   // Debounced save on formData change (skip once on 'success')
   useEffect(() => {
+    if (!DRAFT_KEY) return;
     if (step === 'success') return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => saveDraft(formData), 1000);
+    saveTimerRef.current = setTimeout(() => saveDraft(DRAFT_KEY, formData), 1000);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [formData, step]);
+  }, [formData, step, DRAFT_KEY]);
 
   const handleRestoreDraft = () => {
-    const draft = loadDraft();
+    if (!DRAFT_KEY) return;
+    const draft = loadDraft(DRAFT_KEY);
     if (draft) setFormData(prev => ({ ...prev, ...draft }));
     setShowDraftBanner(false);
   };
 
   const handleDiscardDraft = () => {
-    clearDraft();
+    if (DRAFT_KEY) clearDraft(DRAFT_KEY);
     setShowDraftBanner(false);
   };
 
@@ -352,7 +366,7 @@ export default function Identify() {
               // Producteur créé mais exploitations en échec partiel — on continue quand même
             }
           }
-          clearDraft();
+          if (DRAFT_KEY) clearDraft(DRAFT_KEY);
           setStep('success');
         },
         onError: () => {
@@ -527,7 +541,7 @@ export default function Identify() {
           <Button 
             className="w-full h-14 text-lg bg-[#1B5E20] hover:bg-[#2E7D32] text-white rounded-xl shadow-md" 
             onClick={() => {
-              clearDraft();
+              if (DRAFT_KEY) clearDraft(DRAFT_KEY);
               setFormData(initialState);
               setStep(1);
               setCreatedProducteur(null);
