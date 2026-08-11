@@ -2,12 +2,17 @@ import { useState } from 'react';
 import { useListProducteurs } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Plus, User, MapPin, ChevronRight, ImageOff } from 'lucide-react';
+import { Search, Plus, User, MapPin, ChevronRight, ImageOff, FileDown } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useSignedPhotoUrls } from '@/hooks/use-signed-photo-url';
+import { useAuth } from '@/contexts/AuthContext';
+import ExportLotPDF from '@/components/ExportLotPDF';
+
+/** Rôles autorisés à lancer l'export PDF en lot */
+const EXPORT_ROLES = ['ADMIN', 'DIRECTION', 'COORDINATION_REGIONALE'] as const;
 
 /** Resolves a producer's photo via a batch presigned URL map. */
 function ProducerAvatar({
@@ -56,6 +61,10 @@ export default function MyProducers() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [showExport, setShowExport] = useState(false);
+
+  const { user } = useAuth();
+  const canExport = !!user && EXPORT_ROLES.includes(user.role as typeof EXPORT_ROLES[number]);
 
   const { data: producteurs, isLoading } = useListProducteurs({
     search: debouncedSearch,
@@ -75,7 +84,21 @@ export default function MyProducers() {
   return (
     <div className="h-full flex flex-col">
       <div className="bg-[#1B5E20] p-4 text-white space-y-4 shadow-md z-10 sticky top-0">
-        <h2 className="text-xl font-display font-bold">Mes Producteurs</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xl font-display font-bold">Mes Producteurs</h2>
+
+          {/* Bouton Export lot — Direction / Admin / Coordination uniquement */}
+          {canExport && producteurs && producteurs.length > 0 && (
+            <button
+              onClick={() => setShowExport(true)}
+              title={`Exporter ${producteurs.length} carte${producteurs.length > 1 ? 's' : ''} en PDF`}
+              className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 active:bg-white/40 transition-colors text-white text-xs font-semibold px-3 py-1.5 rounded-full flex-none"
+            >
+              <FileDown className="w-4 h-4" />
+              <span>Export lot</span>
+            </button>
+          )}
+        </div>
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -168,6 +191,15 @@ export default function MyProducers() {
           <Plus className="w-6 h-6 text-white" />
         </Button>
       </Link>
+
+      {/* Modal export PDF en lot */}
+      {showExport && producteurs && producteurs.length > 0 && (
+        <ExportLotPDF
+          producers={producteurs}
+          getPhotoUrl={(path) => getUrl(path)}
+          onDone={() => setShowExport(false)}
+        />
+      )}
     </div>
   );
 }
