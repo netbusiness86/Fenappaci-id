@@ -26,6 +26,7 @@ export default function DetailCooperativePage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const printRef = useRef<HTMLDivElement>(null);
+  const [generating, setGenerating] = useState(false);
 
   const [tab, setTab] = useState<Tab>('infos');
   const [membreSearch, setMembreSearch] = useState('');
@@ -80,17 +81,30 @@ export default function DetailCooperativePage() {
   const handlePrint = () => window.print();
 
   const handleExportPDF = async () => {
-    if (!printRef.current) return;
+    if (!printRef.current || !coop) return;
+    setGenerating(true);
     try {
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
-      const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true, logging: false });
+      const PRINT_W = 794;
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        width: PRINT_W,
+        windowWidth: PRINT_W,
+      });
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const imgW = 210;
       const imgH = (canvas.height * imgW) / canvas.width;
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, imgW, Math.min(imgH, 297));
-      pdf.save(`fiche-cooperative-${coop?.nom?.replace(/\s+/g, '-')}.pdf`);
-    } catch { toast({ title: 'Erreur export PDF', variant: 'destructive' }); }
+      pdf.save(`fiche-cooperative-${coop.nom.replace(/\s+/g, '-')}.pdf`);
+    } catch {
+      toast({ title: 'Erreur export PDF', variant: 'destructive' });
+    } finally {
+      setGenerating(false);
+    }
   };
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[#2E7D32]" /></div>;
@@ -353,8 +367,8 @@ export default function DetailCooperativePage() {
         <Button variant="outline" size="sm" className="flex-1 rounded-xl border-gray-200 text-gray-600" onClick={handlePrint}>
           <Printer className="w-4 h-4 mr-1" /> Imprimer
         </Button>
-        <Button variant="outline" size="sm" className="flex-1 rounded-xl border-gray-200 text-gray-600" onClick={handleExportPDF}>
-          <Download className="w-4 h-4 mr-1" /> PDF
+        <Button variant="outline" size="sm" className="flex-1 rounded-xl border-gray-200 text-gray-600" onClick={handleExportPDF} disabled={generating}>
+          {generating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />} PDF
         </Button>
         <Button size="sm" className="flex-1 bg-[#F57C00] hover:bg-[#E65100] text-white rounded-xl"
           onClick={() => setLocation(`/cooperatives/${id}/modifier`)}>
@@ -369,7 +383,7 @@ export default function DetailCooperativePage() {
         style={{
           position: 'absolute', left: '-9999px', top: 0,
           width: 794, padding: 40, fontFamily: 'Arial, sans-serif',
-          background: '#fff', color: '#1a1a1a',
+          background: '#fff', color: '#1a1a1a', boxSizing: 'border-box',
         }}
       >
         {/* En-tête vert */}
