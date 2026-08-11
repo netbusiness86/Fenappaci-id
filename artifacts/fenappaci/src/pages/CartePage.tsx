@@ -12,7 +12,7 @@ export default function CartePage() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
 
-  const { data: producteur, isLoading, isError } = useGetProducteur({ id: id! });
+  const { data: producteur, isLoading, isError } = useGetProducteur(id!);
   const { signedUrl: photoUrl } = useSignedPhotoUrl(producteur?.photo_path);
 
   // URL sécurisée encodée dans le QR — pointe vers la fiche protégée, pas de données exposées
