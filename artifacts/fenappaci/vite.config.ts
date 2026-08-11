@@ -37,6 +37,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      workbox: {
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MiB — bundle dépasse la limite par défaut de 2 MiB
+      },
       manifest: {
         name: 'FENAPPACI',
         short_name: 'FENAPPACI',
