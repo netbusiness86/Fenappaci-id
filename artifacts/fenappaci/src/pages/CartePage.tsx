@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useGetProducteur } from '@workspace/api-client-react';
 import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
@@ -9,32 +9,47 @@ import { ArrowLeft, Download, Printer, CreditCard, Loader2, AlertTriangle } from
 export default function CartePage() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Ref sur la carte hors-écran (taille réelle) — c'est elle qu'html2canvas capture
+  const captureRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
+
+  // Échelle de la carte visible (adaptée à la largeur mobile)
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const update = () => setScale(Math.min(1, (window.innerWidth - 48) / CARTE_W));
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   const { data: producteur, isLoading, isError } = useGetProducteur(id!);
   const { signedUrl: photoUrl } = useSignedPhotoUrl(producteur?.photo_path);
 
-  // URL sécurisée encodée dans le QR — pointe vers la fiche protégée, pas de données exposées
-  const qrUrl = `${window.location.origin}${import.meta.env.BASE_URL}producteurs/${id}`.replace(/\/\//g, '/').replace('https:/', 'https://').replace('http:/', 'http://');
+  // URL dans le QR — pointe vers la fiche protégée (auth requise)
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const qrUrl = `${window.location.origin}${base}/producteurs/${id}`;
 
-  // ── PDF ──────────────────────────────────────────────────────────────────
+  // ── Téléchargement PDF ───────────────────────────────────────────────────
   const handleDownloadPDF = async () => {
-    if (!cardRef.current || !producteur) return;
+    if (!captureRef.current || !producteur) return;
     setGenerating(true);
     try {
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
 
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 2,
+      // Capturer la carte hors-écran (pleine taille, sans transform)
+      const canvas = await html2canvas(captureRef.current, {
+        scale: 2,            // ×2 pour qualité impression
         useCORS: true,
         allowTaint: true,
-        backgroundColor: null,
         logging: false,
+        width: CARTE_W,
+        height: CARTE_H,
+        windowWidth: CARTE_W,
+        windowHeight: CARTE_H,
       });
 
-      // Dimensions carte bancaire en mm
       const CARD_W_MM = 85.6;
       const CARD_H_MM = 54;
 
@@ -44,7 +59,7 @@ export default function CartePage() {
         format: [CARD_W_MM, CARD_H_MM],
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.97);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       pdf.addImage(imgData, 'JPEG', 0, 0, CARD_W_MM, CARD_H_MM);
       pdf.save(`carte-${producteur.numero_membre}.pdf`);
     } catch (e) {
@@ -55,11 +70,9 @@ export default function CartePage() {
   };
 
   // ── Impression ───────────────────────────────────────────────────────────
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
-  // ── États ────────────────────────────────────────────────────────────────
+  // ── États de chargement ──────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -80,6 +93,21 @@ export default function CartePage() {
 
   const cooperative = producteur.cooperative_nom_libre || producteur.cooperative_nom || null;
 
+  const carteProps = {
+    id: id!,
+    numeroMembre: producteur.numero_membre,
+    nom: producteur.nom,
+    prenoms: producteur.prenoms,
+    region: producteur.region,
+    departement: producteur.departement,
+    village: producteur.village,
+    telephone: producteur.telephone,
+    cooperative,
+    createdAt: producteur.created_at,
+    photoUrl,
+    qrUrl,
+  };
+
   return (
     <>
       {/* ── CSS impression — masque tout sauf la carte ── */}
@@ -87,18 +115,34 @@ export default function CartePage() {
         @media print {
           body > * { display: none !important; }
           #carte-print-root { display: flex !important; }
-          @page {
-            size: 85.6mm 54mm landscape;
-            margin: 0;
-          }
+          @page { size: 85.6mm 54mm landscape; margin: 0; }
         }
       `}</style>
 
-      {/* ── Interface principale (masquée à l'impression) ── */}
+      {/* ── Carte hors-écran pour capture html2canvas (taille réelle, pas de transform) ── */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: '-9999px',
+          width: CARTE_W,
+          height: CARTE_H,
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+      >
+        <CarteProducteur ref={captureRef} {...carteProps} />
+      </div>
+
+      {/* ── Interface principale ── */}
       <div className="min-h-screen bg-gray-50 print:hidden">
         {/* En-tête */}
         <div className="bg-[#1B5E20] text-white px-4 py-4 flex items-center gap-3 safe-top">
-          <button onClick={() => setLocation(`/producteurs/${id}`)} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+          <button
+            onClick={() => setLocation(`/producteurs/${id}`)}
+            className="p-2 rounded-full hover:bg-white/20 transition-colors"
+          >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -111,54 +155,42 @@ export default function CartePage() {
         </div>
 
         <div className="p-6 space-y-8 pb-32">
-          {/* ── Titre ── */}
+          {/* Titre */}
           <div className="text-center space-y-1">
             <h2 className="text-xl font-bold text-[#1B5E20]">Aperçu de la carte</h2>
             <p className="text-sm text-gray-500">{producteur.numero_membre}</p>
           </div>
 
-          {/* ── Carte — aperçu centré, scalé pour écran mobile ── */}
-          <div className="flex justify-center">
+          {/* Aperçu visuel (carte scalée pour l'écran) */}
+          <div className="flex justify-center overflow-hidden">
             <div
               style={{
-                transform: `scale(${Math.min(1, (window.innerWidth - 48) / CARTE_W)})`,
-                transformOrigin: 'top center',
-                marginBottom: `${-(CARTE_H * (1 - Math.min(1, (window.innerWidth - 48) / CARTE_W)))}px`,
+                width: CARTE_W * scale,
+                height: CARTE_H * scale,
+                flexShrink: 0,
               }}
             >
-              <CarteProducteur
-                ref={cardRef}
-                id={id!}
-                numeroMembre={producteur.numero_membre}
-                nom={producteur.nom}
-                prenoms={producteur.prenoms}
-                region={producteur.region}
-                departement={producteur.departement}
-                village={producteur.village}
-                telephone={producteur.telephone}
-                cooperative={cooperative}
-                createdAt={producteur.created_at}
-                photoUrl={photoUrl}
-                qrUrl={qrUrl}
-              />
+              <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                <CarteProducteur {...carteProps} />
+              </div>
             </div>
           </div>
 
-          {/* ── Infos QR Code ── */}
+          {/* Infos QR Code */}
           <div className="bg-white rounded-2xl border shadow-sm p-4 space-y-2">
             <div className="flex items-center gap-2 mb-1">
               <div className="w-2 h-2 rounded-full bg-[#2E7D32]" />
               <span className="text-sm font-bold text-gray-700">QR Code sécurisé</span>
             </div>
             <p className="text-xs text-gray-500">
-              Le QR code redirige vers la fiche du producteur. L'authentification est requise pour consulter les données.
+              Le QR code redirige vers la fiche du producteur. L'authentification est requise.
             </p>
             <div className="bg-gray-50 rounded-lg px-3 py-2 font-mono text-xs text-gray-400 break-all">
               {qrUrl}
             </div>
           </div>
 
-          {/* ── Boutons action ── */}
+          {/* Actions */}
           <div className="space-y-3">
             <Button
               className="w-full h-14 bg-[#1B5E20] hover:bg-[#2E7D32] text-white font-bold rounded-xl text-base shadow-md flex items-center gap-2"
@@ -182,7 +214,6 @@ export default function CartePage() {
             </Button>
           </div>
 
-          {/* ── Note ── */}
           <p className="text-center text-xs text-gray-400 pb-4">
             La carte peut être rééditée à tout moment depuis la fiche du producteur.
           </p>
@@ -192,29 +223,9 @@ export default function CartePage() {
       {/* ── Zone impression uniquement ── */}
       <div
         id="carte-print-root"
-        style={{
-          display: 'none',
-          width: '85.6mm',
-          height: '54mm',
-          overflow: 'hidden',
-        }}
+        style={{ display: 'none', width: '85.6mm', height: '54mm', overflow: 'hidden' }}
       >
-        <div style={{ transform: `scale(${85.6 / (CARTE_W / 3.7795275591)})`, transformOrigin: 'top left' }}>
-          <CarteProducteur
-            id={id!}
-            numeroMembre={producteur.numero_membre}
-            nom={producteur.nom}
-            prenoms={producteur.prenoms}
-            region={producteur.region}
-            departement={producteur.departement}
-            village={producteur.village}
-            telephone={producteur.telephone}
-            cooperative={cooperative}
-            createdAt={producteur.created_at}
-            photoUrl={photoUrl}
-            qrUrl={qrUrl}
-          />
-        </div>
+        <CarteProducteur {...carteProps} />
       </div>
     </>
   );

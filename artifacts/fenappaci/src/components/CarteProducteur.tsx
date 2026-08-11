@@ -41,11 +41,11 @@ const CarteProducteur = forwardRef<HTMLDivElement, CarteProducteurProps>(
         style={{
           width: CARTE_W,
           height: CARTE_H,
-          background: 'linear-gradient(145deg, #1B5E20 0%, #2E7D32 60%, #33691E 100%)',
+          background: '#2E7D32',       /* solid — html2canvas gère mal les gradients sur mobile */
           borderRadius: 24,
           overflow: 'hidden',
           position: 'relative',
-          fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+          fontFamily: 'Arial, Helvetica, sans-serif',  /* police sûre html2canvas */
           boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
           flexShrink: 0,
         }}
