@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, ShoppingCart, MapPin, Phone, Filter, X, TrendingUp, Loader2 } from 'lucide-react';
+import { Search, ShoppingCart, MapPin, Phone, Filter, X, TrendingUp, Loader2, ExternalLink } from 'lucide-react';
+import { Link } from 'wouter';
 
 interface DispoResult {
   production_id: number;
@@ -159,11 +160,19 @@ export default function Disponibilites() {
                   <p className="font-bold text-gray-900 text-sm">{item.producteur.nom} {item.producteur.prenoms}</p>
                   <p className="text-[10px] font-mono text-gray-400">{item.producteur.numero_membre}</p>
                 </div>
-                {item.recherche_acheteur === 'OUI' && (
-                  <Badge className="bg-[#F57C00] text-white border-0 text-[10px] font-bold flex items-center gap-1 shadow-sm animate-pulse-subtle px-2 py-0.5">
-                    <ShoppingCart className="w-2.5 h-2.5" />Recherche acheteur
-                  </Badge>
-                )}
+                <div className="flex flex-col items-end gap-1">
+                  {item.recherche_acheteur === 'OUI' && (
+                    <Badge className="bg-[#F57C00] text-white border-0 text-[10px] font-bold flex items-center gap-1 shadow-sm animate-pulse-subtle px-2 py-0.5">
+                      <ShoppingCart className="w-2.5 h-2.5" />Recherche acheteur
+                    </Badge>
+                  )}
+                  <Link
+                    href={`/producteurs/${item.producteur.id}`}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-[#1B5E20] hover:text-[#2E7D32] bg-[#E8F5E9] hover:bg-[#C8E6C9] rounded-lg px-2 py-1 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" />Voir la fiche
+                  </Link>
+                </div>
               </div>
 
               {(item.producteur.village || item.producteur.departement || item.producteur.region) && (
