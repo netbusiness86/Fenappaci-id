@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Building2, Users, BarChart3, Pencil, Printer, Download,
   Loader2, AlertTriangle, MapPin, Phone, Mail, Calendar, UserCheck,
-  Plus, X, Search, Tractor, Leaf, TrendingUp,
+  Plus, X, Search, Tractor, Leaf, TrendingUp, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -124,6 +124,14 @@ export default function DetailCooperativePage() {
               <h1 className="font-bold text-lg truncate">{coop.nom}</h1>
               <p className="text-white/60 text-xs">{coop.sigle ?? ''} · {coop.nombre_membres} membre{coop.nombre_membres !== 1 ? 's' : ''}</p>
             </div>
+            <button
+              onClick={handleDelete}
+              disabled={deletingCoop}
+              className="p-2 rounded-full hover:bg-red-500/30 transition-colors disabled:opacity-50"
+              title="Supprimer la coopérative"
+            >
+              {deletingCoop ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5 text-red-300" />}
+            </button>
           </div>
 
           {/* Onglets */}
@@ -354,14 +362,83 @@ export default function DetailCooperativePage() {
         </Button>
       </div>
 
-      {/* Fiche imprimable */}
-      <div id="coop-print" ref={printRef} style={{ display: 'none', padding: 24, fontFamily: 'Arial, sans-serif' }}>
-        <h1 style={{ color: '#1B5E20', fontSize: 22, marginBottom: 4 }}>{coop.nom}</h1>
-        {coop.sigle && <p style={{ color: '#666', marginBottom: 16 }}>{coop.sigle}</p>}
-        {coop.region && <p><strong>Région :</strong> {coop.region}</p>}
-        {coop.telephone && <p><strong>Téléphone :</strong> {coop.telephone}</p>}
-        {coop.president && <p><strong>Président :</strong> {coop.president}</p>}
-        <p><strong>Membres :</strong> {coop.nombre_membres}</p>
+      {/* Fiche imprimable — hors-écran pour html2canvas (display:none bloque la capture) */}
+      <div
+        id="coop-print"
+        ref={printRef}
+        style={{
+          position: 'absolute', left: '-9999px', top: 0,
+          width: 794, padding: 40, fontFamily: 'Arial, sans-serif',
+          background: '#fff', color: '#1a1a1a',
+        }}
+      >
+        {/* En-tête vert */}
+        <div style={{ background: '#1B5E20', color: '#fff', padding: '20px 24px', borderRadius: 8, marginBottom: 24 }}>
+          <div style={{ fontSize: 22, fontWeight: 'bold' }}>{coop.nom}</div>
+          {coop.sigle && <div style={{ fontSize: 13, opacity: 0.75, marginTop: 2 }}>{coop.sigle}</div>}
+          {coop.numero_identification && (
+            <div style={{ fontSize: 12, opacity: 0.65, marginTop: 4 }}>N° {coop.numero_identification}</div>
+          )}
+        </div>
+
+        {/* Infos générales */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+          {[
+            ['Région', coop.region],
+            ['Département', coop.departement],
+            ['Sous-préfecture', coop.sous_prefecture],
+            ['Village', coop.village],
+            ['Date de création', coop.date_creation ? new Date(coop.date_creation).toLocaleDateString('fr-FR') : null],
+            ['Téléphone', coop.telephone],
+            ['Email', coop.email],
+            ['Adresse', coop.adresse],
+          ].filter(([, v]) => v).map(([label, value]) => (
+            <div key={label as string} style={{ background: '#f5f5f5', borderRadius: 6, padding: '8px 12px' }}>
+              <div style={{ fontSize: 10, color: '#666', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: 2 }}>{label}</div>
+              <div style={{ fontSize: 13 }}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Responsables */}
+        {(coop.president || coop.vice_president || coop.secretaire || coop.tresorier) && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 'bold', color: '#1B5E20', borderBottom: '2px solid #1B5E20', paddingBottom: 4, marginBottom: 10 }}>
+              Responsables
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[
+                ['Président', coop.president],
+                ['Vice-président', coop.vice_president],
+                ['Secrétaire', coop.secretaire],
+                ['Trésorier', coop.tresorier],
+              ].filter(([, v]) => v).map(([role, nom]) => (
+                <div key={role as string}>
+                  <span style={{ fontSize: 11, color: '#666' }}>{role} : </span>
+                  <span style={{ fontSize: 13, fontWeight: 'bold' }}>{nom}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Statistiques membres */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {[
+            ['Membres', coop.nombre_membres],
+            ['Hommes', (membres ?? []).filter(m => m.sexe === 'M').length],
+            ['Femmes', (membres ?? []).filter(m => m.sexe === 'F').length],
+          ].map(([label, val]) => (
+            <div key={label as string} style={{ background: '#E8F5E9', borderRadius: 8, padding: 12, textAlign: 'center' }}>
+              <div style={{ fontSize: 22, fontWeight: 'bold', color: '#1B5E20' }}>{val}</div>
+              <div style={{ fontSize: 11, color: '#555' }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 32, fontSize: 10, color: '#aaa', textAlign: 'right' }}>
+          Document généré le {new Date().toLocaleDateString('fr-FR')} — FENAPPACI
+        </div>
       </div>
     </>
   );
