@@ -6,8 +6,16 @@
  * OpenAPI spec version: 0.3.0
  */
 
+export * from './addCooperativeMembre200';
 export * from './authUser';
 export * from './cooperative';
+export * from './cooperativeDetail';
+export * from './cooperativeInput';
+export * from './cooperativeListItem';
+export * from './cooperativeMembre';
+export * from './cooperativeStats';
+export * from './cooperativeStatsParCultureItem';
+export * from './cooperativeUpdate';
 export * from './countGroup';
 export * from './dashboardStats';
 export * from './healthStatus';
@@ -17,3 +25,4 @@ export * from './logoutResult';
 export * from './producteur';
 export * from './producteurInput';
 export * from './producteurUpdate';
+export * from './removeCooperativeMembre200';

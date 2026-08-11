@@ -203,7 +203,173 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Cooperative"
+                  $ref: "#/components/schemas/CooperativeListItem"
+    post:
+      operationId: createCooperative
+      tags: [cooperatives]
+      summary: Create cooperative
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CooperativeInput"
+      responses:
+        "201":
+          description: Created cooperative
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CooperativeDetail"
+
+  /cooperatives/{id}:
+    get:
+      operationId: getCooperative
+      tags: [cooperatives]
+      summary: Get cooperative by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cooperative detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CooperativeDetail"
+    patch:
+      operationId: updateCooperative
+      tags: [cooperatives]
+      summary: Update cooperative
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CooperativeUpdate"
+      responses:
+        "200":
+          description: Updated cooperative
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CooperativeDetail"
+    delete:
+      operationId: deleteCooperative
+      tags: [cooperatives]
+      summary: Delete cooperative
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /cooperatives/{id}/membres:
+    get:
+      operationId: getCooperativeMembres
+      tags: [cooperatives]
+      summary: Get cooperative membres
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of membres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CooperativeMembre"
+
+  /cooperatives/{id}/membres/{producteurId}:
+    put:
+      operationId: addCooperativeMembre
+      tags: [cooperatives]
+      summary: Add membre to cooperative
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: producteurId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+    delete:
+      operationId: removeCooperativeMembre
+      tags: [cooperatives]
+      summary: Remove membre from cooperative
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: producteurId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+
+  /cooperatives/{id}/stats:
+    get:
+      operationId: getCooperativeStats
+      tags: [cooperatives]
+      summary: Get cooperative stats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cooperative statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CooperativeStats"
 
   /stats/dashboard:
     get:
@@ -371,6 +537,9 @@ components:
       type: object
       required: [nom, prenoms]
       properties:
+        # Agent assignment (Direction / Admin only — ignored for regular agents)
+        agent_id:
+          type: ["number", "null"]
         # Identité
         nom:
           type: string
@@ -450,6 +619,9 @@ components:
     ProducteurUpdate:
       type: object
       properties:
+        # Agent assignment (Direction / Admin only — ignored for regular agents)
+        agent_id:
+          type: ["number", "null"]
         nom:
           type: string
         prenoms:
@@ -539,6 +711,195 @@ components:
           type: ["number", "null"]
         created_at:
           type: string
+
+    CooperativeListItem:
+      type: object
+      required: [id, nom, created_at]
+      properties:
+        id:
+          type: number
+        nom:
+          type: string
+        region:
+          type: ["string", "null"]
+        departement:
+          type: ["string", "null"]
+        nombre_membres:
+          type: ["number", "null"]
+        created_at:
+          type: string
+
+    CooperativeInput:
+      type: object
+      required: [nom]
+      properties:
+        nom:
+          type: string
+        sigle:
+          type: string
+        numero_identification:
+          type: string
+        date_creation:
+          type: string
+        telephone:
+          type: string
+        email:
+          type: string
+        adresse:
+          type: string
+        region:
+          type: string
+        departement:
+          type: string
+        sous_prefecture:
+          type: string
+        village:
+          type: string
+        president:
+          type: string
+        vice_president:
+          type: string
+        secretaire:
+          type: string
+        tresorier:
+          type: string
+
+    CooperativeUpdate:
+      type: object
+      properties:
+        nom:
+          type: string
+        sigle:
+          type: string
+        numero_identification:
+          type: string
+        date_creation:
+          type: string
+        telephone:
+          type: string
+        email:
+          type: string
+        adresse:
+          type: string
+        region:
+          type: string
+        departement:
+          type: string
+        sous_prefecture:
+          type: string
+        village:
+          type: string
+        president:
+          type: string
+        vice_president:
+          type: string
+        secretaire:
+          type: string
+        tresorier:
+          type: string
+
+    CooperativeDetail:
+      type: object
+      required: [id, nom, nombre_membres, created_at, updated_at]
+      properties:
+        id:
+          type: number
+        nom:
+          type: string
+        sigle:
+          type: ["string", "null"]
+        numero_identification:
+          type: ["string", "null"]
+        date_creation:
+          type: ["string", "null"]
+        telephone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        adresse:
+          type: ["string", "null"]
+        region:
+          type: ["string", "null"]
+        departement:
+          type: ["string", "null"]
+        sous_prefecture:
+          type: ["string", "null"]
+        village:
+          type: ["string", "null"]
+        president:
+          type: ["string", "null"]
+        vice_president:
+          type: ["string", "null"]
+        secretaire:
+          type: ["string", "null"]
+        tresorier:
+          type: ["string", "null"]
+        nombre_membres:
+          type: number
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    CooperativeMembre:
+      type: object
+      required: [id, numero_membre, nom, prenoms, status]
+      properties:
+        id:
+          type: number
+        numero_membre:
+          type: string
+        nom:
+          type: string
+        prenoms:
+          type: string
+        sexe:
+          type: ["string", "null"]
+        telephone:
+          type: ["string", "null"]
+        region:
+          type: ["string", "null"]
+        village:
+          type: ["string", "null"]
+        status:
+          type: string
+        cooperative_fonction:
+          type: ["string", "null"]
+
+    CooperativeStats:
+      type: object
+      required: [nombre_producteurs, nombre_hommes, nombre_femmes, nombre_exploitations, nombre_parcelles, superficie_totale, production_totale, production_disponible, par_culture]
+      properties:
+        nombre_producteurs:
+          type: number
+        nombre_hommes:
+          type: number
+        nombre_femmes:
+          type: number
+        nombre_exploitations:
+          type: number
+        nombre_parcelles:
+          type: number
+        superficie_totale:
+          type: number
+        production_totale:
+          type: number
+        production_disponible:
+          type: number
+        par_culture:
+          type: array
+          items:
+            type: object
+            required: [culture, count, superficie, production]
+            properties:
+              culture:
+                type: string
+              count:
+                type: number
+              superficie:
+                type: number
+              production:
+                type: number
 
     DashboardStats:
       type: object

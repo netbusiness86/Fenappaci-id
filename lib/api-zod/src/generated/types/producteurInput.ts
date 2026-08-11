@@ -7,6 +7,8 @@
  */
 
 export interface ProducteurInput {
+  /** @nullable */
+  agent_id?: number | null;
   nom: string;
   prenoms: string;
   sexe?: string;

@@ -126,6 +126,7 @@ export const ListProducteursResponse = zod.array(ListProducteursResponseItem)
  * @summary Create a producteur
  */
 export const CreateProducteurBody = zod.object({
+  "agent_id": zod.number().nullish(),
   "nom": zod.string(),
   "prenoms": zod.string(),
   "sexe": zod.string().optional(),
@@ -204,7 +205,8 @@ export const CreateProducteurResponse = zod.object({
   "status": zod.string(),
   "agent_id": zod.number().nullish(),
   "agent_nom": zod.string().nullish(),
-  "created_at": zod.string()
+  "created_at": zod.string(),
+  "has_disponibilites": zod.boolean().optional()
 })
 
 
@@ -257,7 +259,8 @@ export const GetProducteurResponse = zod.object({
   "status": zod.string(),
   "agent_id": zod.number().nullish(),
   "agent_nom": zod.string().nullish(),
-  "created_at": zod.string()
+  "created_at": zod.string(),
+  "has_disponibilites": zod.boolean().optional()
 })
 
 
@@ -269,6 +272,7 @@ export const UpdateProducteurParams = zod.object({
 })
 
 export const UpdateProducteurBody = zod.object({
+  "agent_id": zod.number().nullish(),
   "nom": zod.string().optional(),
   "prenoms": zod.string().optional(),
   "sexe": zod.string().optional(),
@@ -348,7 +352,8 @@ export const UpdateProducteurResponse = zod.object({
   "status": zod.string(),
   "agent_id": zod.number().nullish(),
   "agent_nom": zod.string().nullish(),
-  "created_at": zod.string()
+  "created_at": zod.string(),
+  "has_disponibilites": zod.boolean().optional()
 })
 
 
@@ -394,10 +399,38 @@ export const CreateCooperativeBody = zod.object({
   "president": zod.string().optional(),
   "vice_president": zod.string().optional(),
   "secretaire": zod.string().optional(),
-  "tresorier": zod.string().optional(),
+  "tresorier": zod.string().optional()
 })
 
-export const UpdateCooperativeBody = CreateCooperativeBody.partial()
+export const CreateCooperativeResponse = zod.object({
+  "id": zod.number(),
+  "nom": zod.string(),
+  "sigle": zod.string().nullish(),
+  "numero_identification": zod.string().nullish(),
+  "date_creation": zod.string().nullish(),
+  "telephone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "adresse": zod.string().nullish(),
+  "region": zod.string().nullish(),
+  "departement": zod.string().nullish(),
+  "sous_prefecture": zod.string().nullish(),
+  "village": zod.string().nullish(),
+  "president": zod.string().nullish(),
+  "vice_president": zod.string().nullish(),
+  "secretaire": zod.string().nullish(),
+  "tresorier": zod.string().nullish(),
+  "nombre_membres": zod.number(),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+
+
+/**
+ * @summary Get cooperative by ID
+ */
+export const GetCooperativeParams = zod.object({
+  "id": zod.coerce.string()
+})
 
 export const GetCooperativeResponse = zod.object({
   "id": zod.number(),
@@ -418,7 +451,73 @@ export const GetCooperativeResponse = zod.object({
   "tresorier": zod.string().nullish(),
   "nombre_membres": zod.number(),
   "created_at": zod.string(),
-  "updated_at": zod.string(),
+  "updated_at": zod.string()
+})
+
+
+/**
+ * @summary Update cooperative
+ */
+export const UpdateCooperativeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateCooperativeBody = zod.object({
+  "nom": zod.string().optional(),
+  "sigle": zod.string().optional(),
+  "numero_identification": zod.string().optional(),
+  "date_creation": zod.string().optional(),
+  "telephone": zod.string().optional(),
+  "email": zod.string().optional(),
+  "adresse": zod.string().optional(),
+  "region": zod.string().optional(),
+  "departement": zod.string().optional(),
+  "sous_prefecture": zod.string().optional(),
+  "village": zod.string().optional(),
+  "president": zod.string().optional(),
+  "vice_president": zod.string().optional(),
+  "secretaire": zod.string().optional(),
+  "tresorier": zod.string().optional()
+})
+
+export const UpdateCooperativeResponse = zod.object({
+  "id": zod.number(),
+  "nom": zod.string(),
+  "sigle": zod.string().nullish(),
+  "numero_identification": zod.string().nullish(),
+  "date_creation": zod.string().nullish(),
+  "telephone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "adresse": zod.string().nullish(),
+  "region": zod.string().nullish(),
+  "departement": zod.string().nullish(),
+  "sous_prefecture": zod.string().nullish(),
+  "village": zod.string().nullish(),
+  "president": zod.string().nullish(),
+  "vice_president": zod.string().nullish(),
+  "secretaire": zod.string().nullish(),
+  "tresorier": zod.string().nullish(),
+  "nombre_membres": zod.number(),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+
+
+/**
+ * @summary Delete cooperative
+ */
+export const DeleteCooperativeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCooperativeResponse = zod.void()
+
+
+/**
+ * @summary Get cooperative membres
+ */
+export const GetCooperativeMembresParams = zod.object({
+  "id": zod.coerce.string()
 })
 
 export const GetCooperativeMembresResponseItem = zod.object({
@@ -431,9 +530,43 @@ export const GetCooperativeMembresResponseItem = zod.object({
   "region": zod.string().nullish(),
   "village": zod.string().nullish(),
   "status": zod.string(),
-  "cooperative_fonction": zod.string().nullish(),
+  "cooperative_fonction": zod.string().nullish()
 })
 export const GetCooperativeMembresResponse = zod.array(GetCooperativeMembresResponseItem)
+
+
+/**
+ * @summary Add membre to cooperative
+ */
+export const AddCooperativeMembreParams = zod.object({
+  "id": zod.coerce.string(),
+  "producteurId": zod.coerce.string()
+})
+
+export const AddCooperativeMembreResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Remove membre from cooperative
+ */
+export const RemoveCooperativeMembreParams = zod.object({
+  "id": zod.coerce.string(),
+  "producteurId": zod.coerce.string()
+})
+
+export const RemoveCooperativeMembreResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Get cooperative stats
+ */
+export const GetCooperativeStatsParams = zod.object({
+  "id": zod.coerce.string()
+})
 
 export const GetCooperativeStatsResponse = zod.object({
   "nombre_producteurs": zod.number(),
@@ -445,12 +578,13 @@ export const GetCooperativeStatsResponse = zod.object({
   "production_totale": zod.number(),
   "production_disponible": zod.number(),
   "par_culture": zod.array(zod.object({
-    "culture": zod.string(),
-    "count": zod.number(),
-    "superficie": zod.number(),
-    "production": zod.number(),
-  })),
+  "culture": zod.string(),
+  "count": zod.number(),
+  "superficie": zod.number(),
+  "production": zod.number()
+}))
 })
+
 
 /**
  * @summary Get dashboard statistics

@@ -33,7 +33,7 @@ export default function EditCooperativePage() {
   const { toast } = useToast();
 
   const { data: coop, isLoading, isError } = useGetCooperative(id!);
-  const { mutateAsync: updateCoop, isPending } = useUpdateCooperative(id!);
+  const { mutateAsync: updateCoop, isPending } = useUpdateCooperative();
 
   const [form, setForm] = useState({
     nom: '', sigle: '', numero_identification: '', date_creation: '',
@@ -74,7 +74,7 @@ export default function EditCooperativePage() {
       body[k] = v.trim() || null;
     }
     try {
-      await updateCoop({ data: body as any });
+      await updateCoop({ id: id!, data: body as any });
       await queryClient.invalidateQueries({ queryKey: [`/api/cooperatives/${id}`] });
       await queryClient.invalidateQueries({ queryKey: ['/api/cooperatives'] });
       toast({ title: 'Modifications enregistrées !' });

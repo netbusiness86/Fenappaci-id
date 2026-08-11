@@ -37,8 +37,8 @@ export default function DetailCooperativePage() {
   const { data: stats } = useGetCooperativeStats(id!);
   const { data: allProducteurs } = useListProducteurs();
 
-  const { mutateAsync: addMembre, isPending: addingMembre } = useAddCooperativeMembre(id!);
-  const { mutateAsync: removeMembre } = useRemoveCooperativeMembre(id!);
+  const { mutateAsync: addMembre, isPending: addingMembre } = useAddCooperativeMembre();
+  const { mutateAsync: removeMembre } = useRemoveCooperativeMembre();
   const { mutateAsync: deleteCoop, isPending: deletingCoop } = useDeleteCooperative();
 
   const membresIds = new Set((membres ?? []).map((m) => m.id));
@@ -54,7 +54,7 @@ export default function DetailCooperativePage() {
   ).slice(0, 20);
 
   const handleAddMembre = async (producteurId: number) => {
-    await addMembre(producteurId);
+    await addMembre({ id: id!, producteurId: String(producteurId) });
     await queryClient.invalidateQueries({ queryKey: [`/api/cooperatives/${id}/membres`] });
     await queryClient.invalidateQueries({ queryKey: [`/api/cooperatives/${id}`] });
     await refetchMembres();
@@ -62,7 +62,7 @@ export default function DetailCooperativePage() {
   };
 
   const handleRemoveMembre = async (producteurId: number) => {
-    await removeMembre(producteurId);
+    await removeMembre({ id: id!, producteurId: String(producteurId) });
     await queryClient.invalidateQueries({ queryKey: [`/api/cooperatives/${id}/membres`] });
     await queryClient.invalidateQueries({ queryKey: [`/api/cooperatives/${id}`] });
     await refetchMembres();
@@ -71,7 +71,7 @@ export default function DetailCooperativePage() {
 
   const handleDelete = async () => {
     if (!confirm(`Supprimer la coopérative "${coop?.nom}" ?`)) return;
-    await deleteCoop(id!);
+    await deleteCoop({ id: id! });
     await queryClient.invalidateQueries({ queryKey: ['/api/cooperatives'] });
     toast({ title: 'Coopérative supprimée' });
     setLocation('/cooperatives');
