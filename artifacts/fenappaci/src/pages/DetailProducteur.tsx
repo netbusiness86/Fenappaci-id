@@ -35,7 +35,9 @@ import {
   Download,
   Printer,
   Plus,
+  Archive,
 } from 'lucide-react';
+import JSZip from 'jszip';
 import { cn } from '@/lib/utils';
 import { useSignedPhotoUrl } from '@/hooks/use-signed-photo-url';
 import { useToast } from '@/hooks/use-toast';
@@ -59,6 +61,62 @@ async function downloadSignedImage(signedUrl: string, filename: string) {
   } catch {
     // Silently ignore — the signed URL may have expired; the user can retry.
   }
+}
+
+/**
+ * Fetch a fresh signed URL for one object path from the API.
+ * Returns null when the object is missing or access is denied.
+ */
+async function fetchSignedUrl(objectPath: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `/api/storage/signed-url?path=${encodeURIComponent(objectPath)}`,
+      { credentials: 'include' },
+    );
+    if (!res.ok) return null;
+    const { signedUrl } = await res.json();
+    return signedUrl as string;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Download all available photos for a producer as a single ZIP archive.
+ * `photos` is an array of `{ objectPath, filename }` entries; entries whose
+ * objectPath is null/undefined are silently skipped.
+ */
+async function downloadPhotosAsZip(
+  photos: Array<{ objectPath: string | null | undefined; filename: string }>,
+  zipFilename: string,
+): Promise<void> {
+  const zip = new JSZip();
+
+  await Promise.all(
+    photos.map(async ({ objectPath, filename }) => {
+      if (!objectPath) return;
+      const signedUrl = await fetchSignedUrl(objectPath);
+      if (!signedUrl) return;
+      try {
+        const res = await fetch(signedUrl);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        zip.file(filename, blob);
+      } catch {
+        // Skip unavailable photos silently.
+      }
+    }),
+  );
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  const objectUrl = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = zipFilename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(objectUrl);
 }
 
 interface DispoItem {
@@ -436,6 +494,7 @@ export default function DetailProducteur() {
   const isPrivileged = !!user && PRIVILEGED_ROLES.includes(user.role as typeof PRIVILEGED_ROLES[number]);
 
   const [addingDispo, setAddingDispo] = useState(false);
+  const [isZipping, setIsZipping] = useState(false);
 
   const { data: dispos = [] } = useQuery<DispoItem[]>({
     queryKey: ['disponibilites', id],
@@ -624,6 +683,37 @@ export default function DetailProducteur() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+          {isPrivileged && (producteur.photo_path || producteur.piece_recto || producteur.piece_verso) && (
+            <div className="py-3 border-t border-gray-100 print:hidden">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isZipping}
+                className="flex items-center gap-2 text-[#1B5E20] border-[#1B5E20]/30 hover:bg-[#1B5E20]/5 hover:border-[#1B5E20]/60"
+                onClick={async () => {
+                  setIsZipping(true);
+                  try {
+                    await downloadPhotosAsZip(
+                      [
+                        { objectPath: producteur.photo_path,  filename: `photo_identite_${safeName}.jpg` },
+                        { objectPath: producteur.piece_recto, filename: `piece_recto_${safeName}.jpg` },
+                        { objectPath: producteur.piece_verso, filename: `piece_verso_${safeName}.jpg` },
+                      ],
+                      `dossier_${safeName}.zip`,
+                    );
+                  } finally {
+                    setIsZipping(false);
+                  }
+                }}
+              >
+                {isZipping
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Préparation…</>
+                  : <><Archive className="w-4 h-4" /> Télécharger tout</>
+                }
+              </Button>
             </div>
           )}
         </Section>
