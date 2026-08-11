@@ -289,6 +289,18 @@ describe("PATCH /api/producteurs/:id — ownership enforcement", () => {
     expect(res.status).toBe(200);
   });
 
+  it("returns 401 when there is no active session", async () => {
+    // Select 1: fetch existing producteur → found (owned by agent 1).
+    mocks.mockDb._pushSelectResult([{ agent_id: 1 }]);
+
+    // No session user (undefined) → should be rejected before any DB role lookup.
+    const res = await request(createTestApp(undefined))
+      .patch("/api/producteurs/10")
+      .send({ nom: "NouveauNom" });
+
+    expect(res.status).toBe(401);
+  });
+
   it("returns 404 when the producteur does not exist", async () => {
     // Select 1: fetch existing producteur → not found.
     mocks.mockDb._pushSelectResult([]);
@@ -346,6 +358,17 @@ describe("DELETE /api/producteurs/:id — ownership enforcement", () => {
       .delete("/api/producteurs/10");
 
     expect(res.status).toBe(204);
+  });
+
+  it("returns 401 when there is no active session", async () => {
+    // Select 1: fetch existing producteur → found (owned by agent 1).
+    mocks.mockDb._pushSelectResult([{ agent_id: 1 }]);
+
+    // No session user (undefined) → should be rejected before any DB role lookup.
+    const res = await request(createTestApp(undefined))
+      .delete("/api/producteurs/10");
+
+    expect(res.status).toBe(401);
   });
 
   it("returns 404 when the producteur does not exist", async () => {

@@ -375,9 +375,14 @@ router.patch("/producteurs/:id", async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  // For agents: enforce ownership and verify photo/piece paths being assigned.
+  // Require an authenticated session for any mutation.
   const sessionUserId = req.session?.userId as number | undefined;
-  if (sessionUserId) {
+  if (!sessionUserId) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
+  }
+
+  {
     const [sessionUser] = await db
       .select({ role: usersTable.role })
       .from(usersTable)
@@ -477,9 +482,14 @@ router.delete("/producteurs/:id", async (req: Request, res: Response): Promise<v
     return;
   }
 
-  // For agents: enforce ownership — agents may only delete their own producteurs.
+  // Require an authenticated session for any mutation.
   const sessionUserId = req.session?.userId as number | undefined;
-  if (sessionUserId) {
+  if (!sessionUserId) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
+  }
+
+  {
     const [sessionUser] = await db
       .select({ role: usersTable.role })
       .from(usersTable)
