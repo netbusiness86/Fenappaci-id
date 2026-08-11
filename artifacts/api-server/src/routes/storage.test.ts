@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => {
   const mockGetObjectAclPolicy = vi.fn();
   const mockGetObjectEntityFile = vi.fn();
   const mockGetObjectEntitySignedUrl = vi.fn();
+  const mockDownloadObject = vi.fn();
 
   return {
     mockDb,
@@ -56,6 +57,7 @@ const mocks = vi.hoisted(() => {
     mockGetObjectAclPolicy,
     mockGetObjectEntityFile,
     mockGetObjectEntitySignedUrl,
+    mockDownloadObject,
   };
 });
 
@@ -96,9 +98,11 @@ vi.mock('../lib/objectStorage', () => {
   function ObjectStorageService(this: {
     getObjectEntityFile: typeof mocks.mockGetObjectEntityFile;
     getObjectEntitySignedUrl: typeof mocks.mockGetObjectEntitySignedUrl;
+    downloadObject: typeof mocks.mockDownloadObject;
   }) {
     this.getObjectEntityFile = mocks.mockGetObjectEntityFile;
     this.getObjectEntitySignedUrl = mocks.mockGetObjectEntitySignedUrl;
+    this.downloadObject = mocks.mockDownloadObject;
   }
 
   return { ObjectNotFoundError, ObjectAccessDeniedError, ObjectStorageService };
@@ -332,14 +336,24 @@ describe('GET /api/storage/signed-url — access control', () => {
 // GET /api/storage/objects/* — streaming route path-traversal
 // ---------------------------------------------------------------------------
 
-describe('GET /api/storage/objects/* — path-traversal via URL segment', () => {
+describe('GET /api/storage/objects/* — access control and path-traversal', () => {
+  // A minimal fetch-Response-like object the streaming route accepts.
+  const MOCK_DOWNLOAD_RESPONSE = {
+    status: 200,
+    headers: new Headers({ 'content-type': 'image/jpeg' }),
+    body: null,
+  };
+
   beforeEach(() => {
     mocks.mockDb._setUserRows([]);
     mocks.mockDb._setProducteurRows([]);
     mocks.mockGetObjectAclPolicy.mockResolvedValue(null);
     mocks.mockGetObjectEntityFile.mockResolvedValue(MOCK_FILE);
     mocks.mockGetObjectEntitySignedUrl.mockResolvedValue(SIGNED_URL);
+    mocks.mockDownloadObject.mockResolvedValue(MOCK_DOWNLOAD_RESPONSE);
   });
+
+  // ── Unauthenticated ────────────────────────────────────────────────────────
 
   it('returns 401 when unauthenticated (streaming route)', async () => {
     const res = await request(createTestApp())
@@ -347,6 +361,54 @@ describe('GET /api/storage/objects/* — path-traversal via URL segment', () => 
 
     expect(res.status).toBe(401);
   });
+
+  // ── AGENT — own file ───────────────────────────────────────────────────────
+
+  it('AGENT gets 200 for their own object (ACL owner matches, streaming route)', async () => {
+    const agentId = 42;
+    mocks.mockDb._setUserRows([{ role: 'AGENT' }]);
+    mocks.mockGetObjectAclPolicy.mockResolvedValue({
+      owner: String(agentId),
+      visibility: 'private',
+    });
+
+    const res = await request(createTestApp(agentId))
+      .get('/api/storage/objects/photo-abc123');
+
+    expect(res.status).toBe(200);
+  });
+
+  // ── AGENT — foreign file ───────────────────────────────────────────────────
+
+  it('AGENT gets 403 when ACL owner mismatches on the streaming route', async () => {
+    mocks.mockDb._setUserRows([{ role: 'AGENT' }]);
+    mocks.mockGetObjectAclPolicy.mockResolvedValue({
+      owner: '99', // different agent
+      visibility: 'private',
+    });
+
+    const res = await request(createTestApp(42))
+      .get('/api/storage/objects/photo-abc123');
+
+    expect(res.status).toBe(403);
+  });
+
+  // ── Privileged roles ───────────────────────────────────────────────────────
+
+  it('ADMIN gets 200 regardless of ACL owner (streaming route)', async () => {
+    mocks.mockDb._setUserRows([{ role: 'ADMIN' }]);
+    mocks.mockGetObjectAclPolicy.mockResolvedValue({
+      owner: '99', // belongs to a different agent — must be ignored for ADMIN
+      visibility: 'private',
+    });
+
+    const res = await request(createTestApp(1))
+      .get('/api/storage/objects/photo-abc123');
+
+    expect(res.status).toBe(200);
+  });
+
+  // ── Path-traversal ─────────────────────────────────────────────────────────
 
   it('traversal path in URL segment is safe — normalised URL no longer matches the route', async () => {
     // HTTP clients (and Node's http parser) normalise URLs before sending them,
@@ -362,18 +424,5 @@ describe('GET /api/storage/objects/* — path-traversal via URL segment', () => 
     expect([403, 404]).toContain(res.status);
     // Must NOT be 200 — the file must not be served.
     expect(res.status).not.toBe(200);
-  });
-
-  it('AGENT gets 403 when ACL owner mismatches on the streaming route', async () => {
-    mocks.mockDb._setUserRows([{ role: 'AGENT' }]);
-    mocks.mockGetObjectAclPolicy.mockResolvedValue({
-      owner: '99', // different agent
-      visibility: 'private',
-    });
-
-    const res = await request(createTestApp(42))
-      .get('/api/storage/objects/photo-abc123');
-
-    expect(res.status).toBe(403);
   });
 });
