@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCreateProducteur, Producteur } from '@workspace/api-client-react';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertTriangle, CheckCircle2, MapPin, Loader2, Leaf } from 'lucide-react';
+import { CheckCircle, AlertTriangle, CheckCircle2, MapPin, Loader2, Leaf, RotateCcw, X } from 'lucide-react';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { FarmsStep, type FarmDraft } from '@/components/FarmsStep';
 import { ProductionStep } from '@/components/ProductionStep';
@@ -122,6 +122,37 @@ const variants = {
   })
 };
 
+// ── Draft persistence helpers ────────────────────────────────────────────────
+const DRAFT_KEY = 'fenappaci_identify_draft';
+
+// Photo fields store GCS object paths, not base64, but we still exclude them
+// to keep drafts lightweight and avoid any quota issues.
+type DraftPayload = Omit<FormData, 'photo_path' | 'piece_recto' | 'piece_verso'>;
+
+function saveDraft(data: FormData) {
+  const { photo_path: _p, piece_recto: _r, piece_verso: _v, ...rest } = data;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(rest));
+  } catch {
+    // localStorage full or unavailable — silent fallback
+  }
+}
+
+function loadDraft(): DraftPayload | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as DraftPayload;
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* noop */ }
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 const FieldLabel = ({ children, required }: { children: React.ReactNode; required?: boolean }) => (
   <label className="text-xs uppercase font-semibold text-gray-500 mb-1.5 block">
     {children} {required && <span className="text-red-500 text-sm ml-0.5">*</span>}
@@ -139,6 +170,39 @@ export default function Identify() {
   const [createdProducteur, setCreatedProducteur] = useState<Producteur | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+
+  // Draft auto-save
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // On mount: detect existing draft
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft && (draft.nom || draft.prenoms || draft.telephone || draft.village)) {
+      setShowDraftBanner(true);
+    }
+  }, []);
+
+  // Debounced save on formData change (skip once on 'success')
+  useEffect(() => {
+    if (step === 'success') return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => saveDraft(formData), 1000);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [formData, step]);
+
+  const handleRestoreDraft = () => {
+    const draft = loadDraft();
+    if (draft) setFormData(prev => ({ ...prev, ...draft }));
+    setShowDraftBanner(false);
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setShowDraftBanner(false);
+  };
 
   const captureGPS = () => {
     if (!navigator.geolocation) {
@@ -288,6 +352,7 @@ export default function Identify() {
               // Producteur créé mais exploitations en échec partiel — on continue quand même
             }
           }
+          clearDraft();
           setStep('success');
         },
         onError: () => {
@@ -462,6 +527,7 @@ export default function Identify() {
           <Button 
             className="w-full h-14 text-lg bg-[#1B5E20] hover:bg-[#2E7D32] text-white rounded-xl shadow-md" 
             onClick={() => {
+              clearDraft();
               setFormData(initialState);
               setStep(1);
               setCreatedProducteur(null);
@@ -485,6 +551,44 @@ export default function Identify() {
   return (
     <div className="relative min-h-[calc(100dvh-4rem)] flex flex-col">
       <div className="flex-1 p-4 pb-0">
+
+        {/* Draft restore banner */}
+        {showDraftBanner && (
+          <div className="mb-4 rounded-xl border border-[#F57C00]/40 bg-[#FFF3E0] p-3 flex items-start gap-3 shadow-sm">
+            <div className="shrink-0 mt-0.5 w-8 h-8 rounded-full bg-[#F57C00]/15 flex items-center justify-center">
+              <RotateCcw className="w-4 h-4 text-[#E65100]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#E65100]">Brouillon non sauvegardé</p>
+              <p className="text-xs text-[#BF360C] mt-0.5">Un formulaire commencé a été retrouvé. Voulez-vous le reprendre ?</p>
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={handleRestoreDraft}
+                  className="text-xs font-bold text-white bg-[#F57C00] hover:bg-[#E65100] px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Reprendre
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDiscardDraft}
+                  className="text-xs font-semibold text-[#E65100] hover:text-[#BF360C] px-3 py-1.5 rounded-lg border border-[#F57C00]/30 hover:border-[#F57C00]/60 transition-colors"
+                >
+                  Ignorer
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="shrink-0 text-[#E65100]/50 hover:text-[#E65100] transition-colors mt-0.5"
+              aria-label="Fermer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <Card className="bg-white rounded-2xl shadow-sm border-gray-100 overflow-hidden mb-6">
           <CardContent className="p-5">
             {typeof step === 'number' && (
