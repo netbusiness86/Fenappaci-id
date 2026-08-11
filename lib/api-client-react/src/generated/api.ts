@@ -22,6 +22,11 @@ import type {
 import type {
   AuthUser,
   Cooperative,
+  CooperativeDetail,
+  CooperativeMembre,
+  CooperativeStats,
+  CreateCooperativeBody,
+  UpdateCooperativeBody,
   DashboardStats,
   HealthStatus,
   ListProducteursParams,
@@ -806,6 +811,150 @@ export function useListCooperatives<TData = Awaited<ReturnType<typeof listCooper
 
 
 
+
+// ── GET /cooperatives/:id ────────────────────────────────────────────────────
+export const getGetCooperativeUrl = (id: number | string) => `/api/cooperatives/${id}`;
+
+export const getCooperative = async (id: number | string, options?: Parameters<typeof customFetch>[1]): Promise<CooperativeDetail> =>
+  customFetch<CooperativeDetail>(getGetCooperativeUrl(id), { ...options, method: 'GET' });
+
+export const getGetCooperativeQueryKey = (id: number | string) => [`/api/cooperatives/${id}`] as const;
+
+export const getGetCooperativeQueryOptions = <TData = CooperativeDetail, TError = ErrorType<unknown>>(
+  id: number | string,
+  options?: { query?: UseQueryOptions<CooperativeDetail, TError, TData>; request?: SecondParameter<typeof customFetch> }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetCooperativeQueryKey(id);
+  const queryFn: QueryFunction<CooperativeDetail> = ({ signal }) => getCooperative(id, { signal, ...requestOptions });
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<CooperativeDetail, TError, TData> & { queryKey: QueryKey };
+};
+
+export function useGetCooperative<TData = CooperativeDetail, TError = ErrorType<unknown>>(
+  id: number | string,
+  options?: { query?: UseQueryOptions<CooperativeDetail, TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCooperativeQueryOptions(id, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+// ── POST /cooperatives ───────────────────────────────────────────────────────
+export const createCooperative = async (
+  { data }: { data: CreateCooperativeBody },
+  options?: Parameters<typeof customFetch>[1]
+): Promise<CooperativeDetail> =>
+  customFetch<CooperativeDetail>('/api/cooperatives', { ...options, method: 'POST', body: JSON.stringify(data) });
+
+export const getCreateCooperativeMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<CooperativeDetail, TError, { data: CreateCooperativeBody }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<CooperativeDetail, TError, { data: CreateCooperativeBody }, TContext> => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<CooperativeDetail, { data: CreateCooperativeBody }> = (vars) =>
+    createCooperative(vars, requestOptions);
+  return { mutationFn, ...mutationOptions };
+};
+
+export function useCreateCooperative<TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<CooperativeDetail, TError, { data: CreateCooperativeBody }, TContext>; request?: SecondParameter<typeof customFetch> }
+) {
+  return useMutation(getCreateCooperativeMutationOptions(options));
+}
+
+// ── PATCH /cooperatives/:id ──────────────────────────────────────────────────
+export const updateCooperative = async (
+  id: number | string,
+  { data }: { data: UpdateCooperativeBody },
+  options?: Parameters<typeof customFetch>[1]
+): Promise<CooperativeDetail> =>
+  customFetch<CooperativeDetail>(`/api/cooperatives/${id}`, { ...options, method: 'PATCH', body: JSON.stringify(data) });
+
+export function useUpdateCooperative<TError = ErrorType<unknown>, TContext = unknown>(
+  id: number | string,
+  options?: { mutation?: UseMutationOptions<CooperativeDetail, TError, { data: UpdateCooperativeBody }, TContext>; request?: SecondParameter<typeof customFetch> }
+) {
+  return useMutation<CooperativeDetail, TError, { data: UpdateCooperativeBody }, TContext>({
+    mutationFn: (vars) => updateCooperative(id, vars),
+    ...options?.mutation,
+  });
+}
+
+// ── DELETE /cooperatives/:id ─────────────────────────────────────────────────
+export const deleteCooperative = async (id: number | string, options?: Parameters<typeof customFetch>[1]): Promise<void> =>
+  customFetch<void>(`/api/cooperatives/${id}`, { ...options, method: 'DELETE' });
+
+export function useDeleteCooperative<TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<void, TError, number | string, TContext>; request?: SecondParameter<typeof customFetch> }
+) {
+  return useMutation<void, TError, number | string, TContext>({
+    mutationFn: (id) => deleteCooperative(id),
+    ...options?.mutation,
+  });
+}
+
+// ── GET /cooperatives/:id/membres ────────────────────────────────────────────
+export const getCooperativeMembres = async (id: number | string, options?: Parameters<typeof customFetch>[1]): Promise<CooperativeMembre[]> =>
+  customFetch<CooperativeMembre[]>(`/api/cooperatives/${id}/membres`, { ...options, method: 'GET' });
+
+export const getGetCooperativeMembresQueryKey = (id: number | string) => [`/api/cooperatives/${id}/membres`] as const;
+
+export function useGetCooperativeMembres<TData = CooperativeMembre[], TError = ErrorType<unknown>>(
+  id: number | string,
+  options?: { query?: UseQueryOptions<CooperativeMembre[], TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetCooperativeMembresQueryKey(id);
+  const queryFn: QueryFunction<CooperativeMembre[]> = ({ signal }) => getCooperativeMembres(id, { signal, ...requestOptions });
+  const qOpts = { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<CooperativeMembre[], TError, TData> & { queryKey: QueryKey };
+  const query = useQuery(qOpts) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, qOpts.queryKey);
+}
+
+// ── PUT /cooperatives/:id/membres/:producteurId ──────────────────────────────
+export const addCooperativeMembre = async (coopId: number | string, producteurId: number | string, options?: Parameters<typeof customFetch>[1]): Promise<void> =>
+  customFetch<void>(`/api/cooperatives/${coopId}/membres/${producteurId}`, { ...options, method: 'PUT' });
+
+export function useAddCooperativeMembre<TError = ErrorType<unknown>, TContext = unknown>(
+  coopId: number | string,
+  options?: { mutation?: UseMutationOptions<void, TError, number | string, TContext> }
+) {
+  return useMutation<void, TError, number | string, TContext>({
+    mutationFn: (producteurId) => addCooperativeMembre(coopId, producteurId),
+    ...options?.mutation,
+  });
+}
+
+// ── DELETE /cooperatives/:id/membres/:producteurId ───────────────────────────
+export const removeCooperativeMembre = async (coopId: number | string, producteurId: number | string, options?: Parameters<typeof customFetch>[1]): Promise<void> =>
+  customFetch<void>(`/api/cooperatives/${coopId}/membres/${producteurId}`, { ...options, method: 'DELETE' });
+
+export function useRemoveCooperativeMembre<TError = ErrorType<unknown>, TContext = unknown>(
+  coopId: number | string,
+  options?: { mutation?: UseMutationOptions<void, TError, number | string, TContext> }
+) {
+  return useMutation<void, TError, number | string, TContext>({
+    mutationFn: (producteurId) => removeCooperativeMembre(coopId, producteurId),
+    ...options?.mutation,
+  });
+}
+
+// ── GET /cooperatives/:id/stats ──────────────────────────────────────────────
+export const getCooperativeStats = async (id: number | string, options?: Parameters<typeof customFetch>[1]): Promise<CooperativeStats> =>
+  customFetch<CooperativeStats>(`/api/cooperatives/${id}/stats`, { ...options, method: 'GET' });
+
+export const getGetCooperativeStatsQueryKey = (id: number | string) => [`/api/cooperatives/${id}/stats`] as const;
+
+export function useGetCooperativeStats<TData = CooperativeStats, TError = ErrorType<unknown>>(
+  id: number | string,
+  options?: { query?: UseQueryOptions<CooperativeStats, TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetCooperativeStatsQueryKey(id);
+  const queryFn: QueryFunction<CooperativeStats> = ({ signal }) => getCooperativeStats(id, { signal, ...requestOptions });
+  const qOpts = { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<CooperativeStats, TError, TData> & { queryKey: QueryKey };
+  const query = useQuery(qOpts) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, qOpts.queryKey);
+}
 
 export const getGetDashboardStatsUrl = () => {
 

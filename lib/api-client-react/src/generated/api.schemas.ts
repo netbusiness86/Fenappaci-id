@@ -228,3 +228,77 @@ status?: string;
 agent_id?: string;
 };
 
+export interface CooperativeDetail {
+  id: number;
+  nom: string;
+  sigle?: string | null;
+  numero_identification?: string | null;
+  date_creation?: string | null;
+  telephone?: string | null;
+  email?: string | null;
+  adresse?: string | null;
+  region?: string | null;
+  departement?: string | null;
+  sous_prefecture?: string | null;
+  village?: string | null;
+  president?: string | null;
+  vice_president?: string | null;
+  secretaire?: string | null;
+  tresorier?: string | null;
+  nombre_membres: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CooperativeMembre {
+  id: number;
+  numero_membre: string;
+  nom: string;
+  prenoms: string;
+  sexe?: string | null;
+  telephone?: string | null;
+  region?: string | null;
+  village?: string | null;
+  status: string;
+  cooperative_fonction?: string | null;
+}
+
+export interface CooperativeStatsCulture {
+  culture: string;
+  count: number;
+  superficie: number;
+  production: number;
+}
+
+export interface CooperativeStats {
+  nombre_producteurs: number;
+  nombre_hommes: number;
+  nombre_femmes: number;
+  nombre_exploitations: number;
+  nombre_parcelles: number;
+  superficie_totale: number;
+  production_totale: number;
+  production_disponible: number;
+  par_culture: CooperativeStatsCulture[];
+}
+
+export interface CreateCooperativeBody {
+  nom: string;
+  sigle?: string;
+  numero_identification?: string;
+  date_creation?: string;
+  telephone?: string;
+  email?: string;
+  adresse?: string;
+  region?: string;
+  departement?: string;
+  sous_prefecture?: string;
+  village?: string;
+  president?: string;
+  vice_president?: string;
+  secretaire?: string;
+  tresorier?: string;
+}
+
+export type UpdateCooperativeBody = Partial<CreateCooperativeBody>;
+

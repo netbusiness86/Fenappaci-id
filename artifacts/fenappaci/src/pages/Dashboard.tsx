@@ -80,6 +80,22 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Coopératives CTA */}
+      <Link href="/cooperatives">
+        <div className="bg-[#33691E] rounded-2xl p-4 flex items-center justify-between shadow-md active:scale-[0.98] transition-transform touch-manipulation">
+          <div>
+            <p className="text-white font-black text-base">Coopératives</p>
+            <p className="text-white/70 text-xs mt-0.5">{stats.cooperatives} coopérative{stats.cooperatives !== 1 ? 's' : ''} enregistrée{stats.cooperatives !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <ChevronRight className="w-5 h-5 text-white/60" />
+          </div>
+        </div>
+      </Link>
+
       {/* Disponibilités CTA */}
       <Link href="/disponibilites">
         <div className="bg-[#1B5E20] rounded-2xl p-4 flex items-center justify-between shadow-md active:scale-[0.98] transition-transform touch-manipulation">

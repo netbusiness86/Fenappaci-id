@@ -24,6 +24,10 @@ import SearchPage from '@/pages/Search';
 import Profile from '@/pages/Profile';
 import Disponibilites from '@/pages/Disponibilites';
 import CartePage from '@/pages/CartePage';
+import CooperativesListPage from '@/pages/CooperativesListPage';
+import CreateCooperativePage from '@/pages/CreateCooperativePage';
+import DetailCooperativePage from '@/pages/DetailCooperativePage';
+import EditCooperativePage from '@/pages/EditCooperativePage';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -73,6 +77,18 @@ function Router() {
           </Route>
           <Route path="/disponibilites">
             <ProtectedRoute><Disponibilites /></ProtectedRoute>
+          </Route>
+          <Route path="/cooperatives/nouvelle">
+            <ProtectedRoute><CreateCooperativePage /></ProtectedRoute>
+          </Route>
+          <Route path="/cooperatives/:id/modifier">
+            <ProtectedRoute><EditCooperativePage /></ProtectedRoute>
+          </Route>
+          <Route path="/cooperatives/:id">
+            <ProtectedRoute><DetailCooperativePage /></ProtectedRoute>
+          </Route>
+          <Route path="/cooperatives">
+            <ProtectedRoute><CooperativesListPage /></ProtectedRoute>
           </Route>
           <Route path="/profil">
             <ProtectedRoute><Profile /></ProtectedRoute>

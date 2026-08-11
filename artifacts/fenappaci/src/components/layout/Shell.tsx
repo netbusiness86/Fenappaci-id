@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Users, UserPlus, Search, UserCircle, ShoppingBasket } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Search, UserCircle, ShoppingBasket, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -16,8 +16,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
     { name: 'Tableau', href: '/tableau-de-bord', icon: LayoutDashboard },
     { name: 'Producteurs', href: '/mes-producteurs', icon: Users },
     { name: 'Identifier', href: '/identifier', icon: UserPlus },
+    { name: 'Coopérat.', href: '/cooperatives', icon: Building2 },
     { name: 'Marchés', href: '/disponibilites', icon: ShoppingBasket },
-    { name: 'Rechercher', href: '/rechercher', icon: Search },
     { name: 'Profil', href: '/profil', icon: UserCircle },
   ];
 
