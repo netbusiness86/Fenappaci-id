@@ -408,6 +408,58 @@ describe('GET /api/storage/objects/* — access control and path-traversal', () 
     expect(res.status).toBe(200);
   });
 
+  // ── File disappears after access check (ObjectNotFoundError from downloadObject) ──
+
+  it('ADMIN gets 404 (not 500) when downloadObject throws ObjectNotFoundError after access check', async () => {
+    // ADMIN passes canUserAccessObject, then getObjectEntityFile succeeds,
+    // but downloadObject throws — simulating a file that disappeared between
+    // the access check and the actual download.
+    mocks.mockDb._setUserRows([{ role: 'ADMIN' }]);
+    mocks.mockGetObjectEntityFile.mockResolvedValue(MOCK_FILE);
+    const { ObjectNotFoundError } = await import('../lib/objectStorage.js');
+    mocks.mockDownloadObject.mockRejectedValue(new ObjectNotFoundError());
+
+    const res = await request(createTestApp(1))
+      .get('/api/storage/objects/photo-abc123');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ error: expect.any(String) });
+  });
+
+  it('ADMIN does NOT get 500 when downloadObject throws ObjectNotFoundError (file gone after access check)', async () => {
+    mocks.mockDb._setUserRows([{ role: 'ADMIN' }]);
+    mocks.mockGetObjectEntityFile.mockResolvedValue(MOCK_FILE);
+    const { ObjectNotFoundError } = await import('../lib/objectStorage.js');
+    mocks.mockDownloadObject.mockRejectedValue(new ObjectNotFoundError());
+
+    const res = await request(createTestApp(1))
+      .get('/api/storage/objects/photo-abc123');
+
+    expect(res.status).not.toBe(500);
+  });
+
+  it('AGENT gets 404 (not 500) when downloadObject throws ObjectNotFoundError after access check', async () => {
+    // AGENT's ACL matches, access is granted, but the file disappears before download.
+    const agentId = 42;
+    mocks.mockDb._setUserRows([{ role: 'AGENT' }]);
+    mocks.mockGetObjectAclPolicy.mockResolvedValue({
+      owner: String(agentId),
+      visibility: 'private',
+    });
+    // getObjectEntityFile is called twice: once inside canUserAccessObject and
+    // once directly in the route handler. Both should succeed so access passes,
+    // then downloadObject throws.
+    mocks.mockGetObjectEntityFile.mockResolvedValue(MOCK_FILE);
+    const { ObjectNotFoundError } = await import('../lib/objectStorage.js');
+    mocks.mockDownloadObject.mockRejectedValue(new ObjectNotFoundError());
+
+    const res = await request(createTestApp(agentId))
+      .get('/api/storage/objects/photo-abc123');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ error: expect.any(String) });
+  });
+
   // ── Path-traversal ─────────────────────────────────────────────────────────
 
   it('traversal path in URL segment is safe — normalised URL no longer matches the route', async () => {
